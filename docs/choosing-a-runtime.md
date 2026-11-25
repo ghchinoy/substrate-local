@@ -54,7 +54,7 @@ Promote your unchanged manifests (`ax promote task <name> --to <gke-context>`) t
   - Embedded HTTP/1.1 + HTTP/2 `h2c` `atenet-router` (`ate-target-actor` header + wake-on-request).
   - Container `--entrypoint` parity with `Container.command`, `/run/ate/actor-uid` projection (and future `substrate#3876` per-actor config), `/workspace` `.tar.gz` volume snapshots, and read-only `ActorTemplate` OCI image volumes (`/opt/ax` via `--runner-volume-image`).
 - **Explicit non-goals (use Kind or GKE instead):**
-  - Privileged host firewall / L7 Envoy `atenet-egress` containment and `MintActorJwt`.
+  - Privileged host firewall / L7 Envoy `atenet-egress` containment, local TLS-MITM credential proxies, and `MintActorJwt` (see [`docs/adr-001-no-local-egress-proxy.md`](adr-001-no-local-egress-proxy.md)).
   - Userspace RAM checkpointing (`runsc --checkpoint`); AX cold-start resume (`#683`) already persists state on `/workspace`.
   - Multi-node `WorkerPool` scheduling (`CreateWorker`, `DrainWorker`, etc.) and multi-tenant RBAC `AccessPolicy` RPCs (18 cluster-only RPCs tracked in `pkg/sublocal/drift_test.go`).
 
