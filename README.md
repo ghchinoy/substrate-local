@@ -25,7 +25,7 @@ Running full Agent Substrate locally via Kind (`ax local start`) gives full prod
 ### Prerequisites
 - Go `1.27+` (`GOTOOLCHAIN=auto`)
 - macOS **Apple `container`** (`/usr/local/bin/container`, `container system start`) and/or **Podman** (`podman machine start` — rootless works out of the box)
-- Upstream **[`google/ax`](https://github.com/google/ax)** checkout (defaults to `AX_REPO=~/projects/ax`) or `ax` / `ax-server` binaries
+- Upstream **[`google/ax`](https://github.com/google/ax)**: no local clone required (`make up` automatically fetches `github.com/google/ax@v0.4.0-rc.2` via Go modules, or set `AX_VERSION=main` / `AX_REPO=~/projects/ax`)
 
 ### 1. Run Standalone `substrate-local` Daemon
 ```bash

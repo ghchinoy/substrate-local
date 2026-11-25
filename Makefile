@@ -14,17 +14,23 @@
 
 export GOTOOLCHAIN ?= auto
 
+VERSION ?= dev
+COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION_PKG := github.com/ghchinoy/substrate-local/internal/version
+LDFLAGS := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).Date=$(BUILD_DATE)
+
 .PHONY: build run test test-compat vet fmt up down multi-up multi-down status logs reset clean
 
 build:
 	mkdir -p bin
-	go build -o bin/substrate-local ./cmd/substrate-local
+	go build -trimpath -ldflags="$(LDFLAGS)" -o bin/substrate-local ./cmd/substrate-local
 
 run: build
 	./bin/substrate-local --config examples/substrate-local.yaml
 
 test:
-	go test -v ./pkg/sublocal/...
+	go test -race -v ./...
 
 test-compat:
 	./scripts/test-ax-compat.sh

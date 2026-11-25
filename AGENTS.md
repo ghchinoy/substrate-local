@@ -10,9 +10,10 @@ Standalone zero-Kubernetes Agent Substrate `v1.0.0` Control API + `atenet-router
 
 ## Layout
 
-- `cmd/substrate-local/` — CLI daemon entrypoint (`--addr`, `--runtime`, `--config`, `--snapshot-dir`)
+- `cmd/substrate-local/` — CLI daemon entrypoint (`--addr`, `--runtime`, `--config`, `--snapshot-dir`, `--version` / `version`)
+- `internal/version/` — Build-time version/commit/date stamping via `-ldflags`
 - `pkg/sublocal/` — Public `Server`, `Config`, `ContainerRunner` (`apple` & `podman`), unit + live Apple `container` tests
-- `scripts/ax-stack.sh` — Single-cluster (`up`/`down`) and dual-cluster (`multi-up`/`migrate`) local AX stack orchestrator pairing `substrate-local` with unmodified upstream `google/ax` (`AX_REPO`, default `~/projects/ax`)
+- `scripts/ax-stack.sh` — Single-cluster (`up`/`down`) and dual-cluster (`multi-up`/`migrate`) local AX stack orchestrator pairing `substrate-local` with unmodified upstream `google/ax` (`AX_VERSION` clone-free module fetch or local `AX_REPO`)
 - `scripts/test-ax-compat.sh` — End-to-end contract regression suite (`make test-compat`) validating `substrate-local` against unmodified upstream `google/ax`
 - `examples/` — Sample `substrate-local.yaml` and `task-local.yaml`
 - `docs/architecture.md` — Architecture, runtime comparison, and limitations

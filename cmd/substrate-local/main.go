@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -29,15 +30,22 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ghchinoy/substrate-local/internal/version"
 	"github.com/ghchinoy/substrate-local/pkg/sublocal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Println(version.Full())
+		return
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
+	showVersion := flag.Bool("version", false, "Print version information and exit")
 	configFile := flag.String("config", "", "Path to substrate-local.yaml configuration file (optional)")
 	addr := flag.String("addr", ":50051", "gRPC + HTTP/h2c server listen address")
 	runtime := flag.String("runtime", "", "Container runtime: apple (default) or podman")
@@ -46,6 +54,11 @@ func main() {
 	containerBin := flag.String("container-bin", "", "Path to container CLI binary (optional)")
 	initImage := flag.String("init-image", "", "Custom Apple container vminit image (optional, auto-detected on version mismatch)")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version.Full())
+		return
+	}
 
 	cfg, err := sublocal.LoadConfig(*configFile)
 	if err != nil {
@@ -103,6 +116,7 @@ func main() {
 	}()
 
 	slog.Info("substrate-local Agent Substrate Control + atenet-router server listening",
+		"version", version.String(),
 		"address", lis.Addr().String(),
 		"runtime", cfg.Runtime,
 		"containerPrefix", cfg.ContainerPrefix,

@@ -49,7 +49,8 @@ log.Fatal(httpServer.ListenAndServe())
 | `SUBSTRATE_LOCAL_SNAPSHOT_DIR` (`ATE_LOCAL_SNAPSHOT_DIR`) | `snapshot_dir` | *(empty)* | Host directory for `/workspace` snapshots, `tags/`, and `/run/ate` metadata |
 | `SUBSTRATE_LOCAL_SETUP_IMAGE` (`ATE_LOCAL_SETUP_IMAGE`) | `setup_image` | `alpine/git` | Fallback image for legacy warm setup |
 | `SUBSTRATE_LOCAL_INIT_IMAGE` (`ATE_LOCAL_INIT_IMAGE`) | `init_image` | *(auto)* | Optional custom Apple `container` `vminit` image |
-| `AX_REPO` | *(script)* | `~/projects/ax` | Local `google/ax` checkout for `scripts/ax-stack.sh` to build `ax`, `ax-server`, and `linux/arm64` `ax-runner` |
+| `AX_VERSION` | *(script)* | `v0.4.0-rc.2` *(fallback)* | Clone-free upstream `google/ax` module tag/branch/commit (e.g. `v0.4.0-rc.2`, `main`) built straight from the Go module cache |
+| `AX_REPO` | *(script)* | `~/projects/ax` | Local `google/ax` checkout used when `AX_VERSION` is unset and the directory exists |
 
 ## Limitations
 

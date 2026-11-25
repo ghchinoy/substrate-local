@@ -25,7 +25,10 @@
 # Usage: scripts/ax-stack.sh {up|down|status|logs [component]|reset|multi-up|multi-down|migrate <task> [atespace]}
 #
 # Ports, runtimes, and names can be overridden with environment variables:
-#   AX_REPO                     (default ~/projects/ax; local google/ax checkout to build ax/ax-server/ax-runner)
+#   AX_VERSION                  Optional google/ax module version/tag/commit (e.g. v0.4.0-rc.2, main).
+#                               When set (or when AX_REPO is not cloned locally), builds ax/ax-server/ax-runner
+#                               directly from the Go module cache without requiring a local google/ax clone.
+#   AX_REPO                     (default ~/projects/ax; local google/ax checkout used when AX_VERSION is unset)
 #   AX_LOCAL_RUNTIME            (default apple; or podman)
 #   AX_LOCAL_CLUSTER_B_RUNTIME  (default podman if installed, else apple)
 #   AX_LOCAL_POSTGRES_PORT      (default 5432)
@@ -41,6 +44,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AX_REPO="${AX_REPO:-${HOME}/projects/ax}"
+AX_VERSION="${AX_VERSION:-}"
+DEFAULT_AX_VERSION="v0.4.0-rc.2"
 cd "${REPO_ROOT}"
 
 RUNTIME="${AX_LOCAL_RUNTIME:-apple}"
@@ -157,19 +162,56 @@ check_port() {
   fi
 }
 
+resolve_ax_module_dir() {
+  local ver="$1"
+  local tmp_mod mod_json dir
+  tmp_mod="$(mktemp -d "${TMPDIR:-/tmp}/ax-mod-XXXXXX")"
+  mod_json="$(
+    cd "${tmp_mod}"
+    GOWORK=off go mod init substrate-local-ax-fetch >/dev/null 2>&1
+    GOWORK=off go mod download -json "github.com/google/ax@${ver}"
+  )"
+  rm -rf "${tmp_mod}"
+  dir="$(printf '%s\n' "${mod_json}" | sed -n 's/^[[:space:]]*"Dir":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  [[ -n "${dir}" && -d "${dir}" ]] || die "failed to download github.com/google/ax@${ver} into Go module cache"
+  printf '%s' "${dir}"
+}
+
 build() {
+  local commit build_date ldflags ax_src ax_ldflags=""
+  commit="$(git -C "${REPO_ROOT}" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+  build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  ldflags="-s -w -X github.com/ghchinoy/substrate-local/internal/version.Commit=${commit} -X github.com/ghchinoy/substrate-local/internal/version.Date=${build_date}"
+
   info "Building substrate-local into ${BIN_DIR}"
   mkdir -p "${BIN_DIR}/linux_arm64"
-  go build -o "${BIN_DIR}/substrate-local" ./cmd/substrate-local
+  go build -trimpath -ldflags="${ldflags}" -o "${BIN_DIR}/substrate-local" ./cmd/substrate-local
 
-  [[ -d "${AX_REPO}/cmd/ax-server" ]] || die "upstream AX checkout not found at AX_REPO='${AX_REPO}'. Clone https://github.com/google/ax or set AX_REPO."
-  info "Building upstream ax, ax-server, and linux/arm64 ax-runner from ${AX_REPO}"
+  if [[ -n "${AX_VERSION}" ]]; then
+    info "Downloading upstream github.com/google/ax@${AX_VERSION} into Go module cache"
+    ax_src="$(resolve_ax_module_dir "${AX_VERSION}")"
+    if [[ "${AX_VERSION}" == v* ]]; then
+      ax_ldflags="-X github.com/google/ax/internal/version.Version=${AX_VERSION}"
+    fi
+  elif [[ -d "${AX_REPO}/cmd/ax-server" ]]; then
+    ax_src="${AX_REPO}"
+  else
+    info "No local AX_REPO at '${AX_REPO}'; falling back to clone-free github.com/google/ax@${DEFAULT_AX_VERSION}"
+    ax_src="$(resolve_ax_module_dir "${DEFAULT_AX_VERSION}")"
+    ax_ldflags="-X github.com/google/ax/internal/version.Version=${DEFAULT_AX_VERSION}"
+  fi
+
+  info "Building upstream ax, ax-server, and linux/arm64 ax-runner from ${ax_src}"
   (
-    cd "${AX_REPO}"
-    go build -o "${BIN_DIR}/ax-server" ./cmd/ax-server
-    go build -o "${BIN_DIR}/ax" ./cmd/ax
+    cd "${ax_src}"
+    GOWORK=off go build -o "${BIN_DIR}/ax-server" ./cmd/ax-server
+    if [[ -n "${ax_ldflags}" ]]; then
+      GOWORK=off go build -ldflags="${ax_ldflags}" -o "${BIN_DIR}/ax" ./cmd/ax
+    else
+      GOWORK=off go build -o "${BIN_DIR}/ax" ./cmd/ax
+    fi
     # Apple container and Apple Silicon Podman run arm64 Linux guests.
-    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+    GOWORK=off GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
       go build -trimpath -ldflags="-s -w" -o "${BIN_DIR}/linux_arm64/ax-runner" ./cmd/ax-runner
   )
   # Keep a hard-linked alias for older images referencing /usr/local/bin/ax-task-runner.
