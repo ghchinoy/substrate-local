@@ -14,7 +14,7 @@
 
 export GOTOOLCHAIN ?= auto
 
-.PHONY: build run test vet fmt up down multi-up multi-down status logs reset clean
+.PHONY: build run test test-compat vet fmt up down multi-up multi-down status logs reset clean
 
 build:
 	mkdir -p bin
@@ -25,6 +25,9 @@ run: build
 
 test:
 	go test -v ./pkg/sublocal/...
+
+test-compat:
+	./scripts/test-ax-compat.sh
 
 vet:
 	go vet ./...

@@ -7,6 +7,7 @@ bin/
 # Local AX stack state (scripts/ax-stack.sh)
 .substrate-local/
 .tmp/
+.serena/
 .vscode/
 .DS_Store
 

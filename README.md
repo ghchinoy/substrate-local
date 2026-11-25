@@ -77,9 +77,17 @@ make multi-down
 
 ---
 
-## Upstream AX `v0.4.0-rc.2` Compatibility & Limitations
+## Upstream AX `v0.4.0-rc.2` Compatibility & Regression Suite
 
-Verified against **`google/ax` `v0.4.0-rc.2`+ (`8d879b5`)** and upstream `./hack/tour.sh`:
+Run the built-in contract regression suite against any unmodified upstream `google/ax` checkout (`AX_REPO`, default `~/projects/ax`):
+
+```bash
+make test                               # Go unit + live Apple container tests (~4s)
+make test-compat                        # fresh upstream hack/tour.sh + PID-1/plain-image + h2c ax ssh stress (~45s)
+TEST_PODMAN=1 make test-compat          # also tests Apple container <-> rootless Podman migrate & ax promote
+```
+
+Verified against **`google/ax` `v0.4.0-rc.2`+ (`8d879b5`)**:
 - **Passes:** `Task` lifecycle (`Suspended`/`Running`), `Workspace` setup (`git` + `files` + `commands`) & `Tag` snapshot fan-out isolation, `--router-url` inbound task push, launcher contract (`AX_*_FILE` + `AX_METADATA_URL`), `ax ssh` (`h2c`), `suspend`/`resume` `/workspace` persistence, multi-tenant atespaces, `Model` CRUD, `ax promote`, and cross-runtime migration.
 - **Known Limitations:**
   1. **Volumes-fidelity snapshots (`SNAPSHOT_FIDELITY_VOLUMES`):** Archives `/workspace` on suspend/resume; in-memory process state is not checkpointed (no `runsc --checkpoint`).
