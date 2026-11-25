@@ -3,7 +3,7 @@ module github.com/ghchinoy/substrate-local
 go 1.27.1
 
 require (
-	go.ate.dev/substrate v1.0.0
+	go.ate.dev/substrate v1.0.1
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
