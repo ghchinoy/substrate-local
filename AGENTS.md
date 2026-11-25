@@ -17,6 +17,9 @@ Standalone zero-Kubernetes Agent Substrate `v1.0.0` Control API + `atenet-router
 - `scripts/test-ax-compat.sh` — End-to-end contract regression suite (`make test-compat`) validating `substrate-local` against unmodified upstream `google/ax`
 - `scripts/check-substrate-drift.sh` — Checks `go.ate.dev/substrate` & `google/ax` release drift and verifies `ControlServer` RPC coverage (`make check-drift`)
 - `examples/` — Sample `substrate-local.yaml` and `task-local.yaml`
+- `docs/quickstart-apple-container.md` — macOS Apple `container` + AX quickstart
+- `docs/quickstart-podman.md` — Rootless Podman + AX quickstart (macOS & Linux)
+- `docs/choosing-a-runtime.md` — Compatibility boundary & decision guide (`substrate-local` vs. Kind vs. GKE)
 - `docs/architecture.md` — Architecture, runtime comparison, and limitations
 - `docs/diagrams/` — Semantic Graphviz `.dot` sources and dual-theme (`-light.webp` / `-dark.webp`) diagrams rendered via `make diagrams` (`../graphviz-style/theme/lustrous.gvpr`)
 

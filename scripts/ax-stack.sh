@@ -49,6 +49,11 @@ DEFAULT_AX_VERSION="v0.4.0-rc.2"
 cd "${REPO_ROOT}"
 
 RUNTIME="${AX_LOCAL_RUNTIME:-apple}"
+if [[ "${RUNTIME}" == "apple" && "$(uname -s)" != "Darwin" ]]; then
+  RUNTIME="podman"
+fi
+POSTGRES_RUNTIME="${AX_LOCAL_POSTGRES_RUNTIME:-${RUNTIME}}"
+GUEST_ARCH="${AX_LOCAL_GUEST_ARCH:-$(go env GOARCH 2>/dev/null || uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')}"
 if [[ -n "${AX_LOCAL_CLUSTER_B_RUNTIME:-}" ]]; then
   CLUSTER_B_RUNTIME="${AX_LOCAL_CLUSTER_B_RUNTIME}"
 elif command -v podman >/dev/null 2>&1; then
@@ -135,19 +140,40 @@ alive() {
 }
 
 postgres_running() {
-  container list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "${POSTGRES_NAME}"
+  if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+    podman ps --format '{{.Names}}' 2>/dev/null | grep -qx "${POSTGRES_NAME}"
+  else
+    container list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "${POSTGRES_NAME}"
+  fi
 }
 
 postgres_exists() {
-  container list --all 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "${POSTGRES_NAME}"
+  if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+    podman ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "${POSTGRES_NAME}"
+  else
+    container list --all 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "${POSTGRES_NAME}"
+  fi
+}
+
+postgres_exec() {
+  if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+    podman exec "${POSTGRES_NAME}" "$@"
+  else
+    container exec "${POSTGRES_NAME}" "$@"
+  fi
 }
 
 check_prereqs() {
-  [[ "$(uname -s)" == "Darwin" ]] || die "local-stack.sh requires macOS (Apple container)"
-  command -v container >/dev/null || die "Apple 'container' CLI not found in PATH"
   command -v go >/dev/null || die "go not found in PATH"
   command -v nc >/dev/null || die "nc not found in PATH"
-  container list >/dev/null 2>&1 || die "Apple container is not responding; try 'container system start'"
+  if [[ "${RUNTIME}" == "podman" ]]; then
+    command -v podman >/dev/null || die "podman CLI not found in PATH"
+    podman info >/dev/null 2>&1 || die "podman is not responding; try 'podman machine start' (macOS) or check your rootless podman setup"
+  else
+    [[ "$(uname -s)" == "Darwin" ]] || die "Apple container runtime requires macOS (use AX_LOCAL_RUNTIME=podman on Linux)"
+    command -v container >/dev/null || die "Apple 'container' CLI not found in PATH (or set AX_LOCAL_RUNTIME=podman)"
+    container list >/dev/null 2>&1 || die "Apple container is not responding; try 'container system start'"
+  fi
 }
 
 # check_port fails if a port is held by something this script did not start.
@@ -184,7 +210,7 @@ build() {
   ldflags="-s -w -X github.com/ghchinoy/substrate-local/internal/version.Commit=${commit} -X github.com/ghchinoy/substrate-local/internal/version.Date=${build_date}"
 
   info "Building substrate-local into ${BIN_DIR}"
-  mkdir -p "${BIN_DIR}/linux_arm64"
+  mkdir -p "${BIN_DIR}/linux_${GUEST_ARCH}"
   go build -trimpath -ldflags="${ldflags}" -o "${BIN_DIR}/substrate-local" ./cmd/substrate-local
 
   if [[ -n "${AX_VERSION}" ]]; then
@@ -201,7 +227,7 @@ build() {
     ax_ldflags="-X github.com/google/ax/internal/version.Version=${DEFAULT_AX_VERSION}"
   fi
 
-  info "Building upstream ax, ax-server, and linux/arm64 ax-runner from ${ax_src}"
+  info "Building upstream ax, ax-server, and linux/${GUEST_ARCH} ax-runner from ${ax_src}"
   (
     cd "${ax_src}"
     GOWORK=off go build -o "${BIN_DIR}/ax-server" ./cmd/ax-server
@@ -210,12 +236,11 @@ build() {
     else
       GOWORK=off go build -o "${BIN_DIR}/ax" ./cmd/ax
     fi
-    # Apple container and Apple Silicon Podman run arm64 Linux guests.
-    GOWORK=off GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-      go build -trimpath -ldflags="-s -w" -o "${BIN_DIR}/linux_arm64/ax-runner" ./cmd/ax-runner
+    GOWORK=off GOOS=linux GOARCH="${GUEST_ARCH}" CGO_ENABLED=0 \
+      go build -trimpath -ldflags="-s -w" -o "${BIN_DIR}/linux_${GUEST_ARCH}/ax-runner" ./cmd/ax-runner
   )
   # Keep a hard-linked alias for older images referencing /usr/local/bin/ax-task-runner.
-  ln -f "${BIN_DIR}/linux_arm64/ax-runner" "${BIN_DIR}/linux_arm64/ax-task-runner"
+  ln -f "${BIN_DIR}/linux_${GUEST_ARCH}/ax-runner" "${BIN_DIR}/linux_${GUEST_ARCH}/ax-task-runner"
 }
 
 write_cluster_config() {
@@ -229,13 +254,13 @@ snapshot_dir: "${SNAPSHOT_DIR}"
 ready_timeout: "20s"
 templates:
   # substrate-local copies this template's volumes into each custom template,
-  # so every stock image gets the arm64 ax-runner automatically.
+  # so every stock image gets the linux/${GUEST_ARCH} ax-runner automatically.
   default:
     image: "debian:12"
     port: 80
     volumes:
-      - "${BIN_DIR}/linux_arm64/ax-runner:/usr/local/bin/ax-runner"
-      - "${BIN_DIR}/linux_arm64/ax-runner:/usr/local/bin/ax-task-runner"
+      - "${BIN_DIR}/linux_${GUEST_ARCH}/ax-runner:/usr/local/bin/ax-runner"
+      - "${BIN_DIR}/linux_${GUEST_ARCH}/ax-runner:/usr/local/bin/ax-task-runner"
     cpus: 2
     memory: "1024M"
 EOF
@@ -264,18 +289,28 @@ start_postgres() {
   else
     check_port "PostgreSQL" "${POSTGRES_PORT}" no
     if postgres_exists; then
-      info "Starting existing PostgreSQL container ${POSTGRES_NAME}"
-      container start "${POSTGRES_NAME}" >/dev/null
+      info "Starting existing PostgreSQL container ${POSTGRES_NAME} (${POSTGRES_RUNTIME})"
+      if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+        podman start "${POSTGRES_NAME}" >/dev/null
+      else
+        container start "${POSTGRES_NAME}" >/dev/null
+      fi
     else
-      info "Starting PostgreSQL (${POSTGRES_IMAGE}) in Apple container"
-      container run -d --progress none --name "${POSTGRES_NAME}" \
-        -e POSTGRES_USER=ax -e POSTGRES_PASSWORD=ax -e POSTGRES_DB=ax \
-        -p "${HOST}:${POSTGRES_PORT}:5432" --memory 512M "${POSTGRES_IMAGE}" >/dev/null
+      info "Starting PostgreSQL (${POSTGRES_IMAGE}) in ${POSTGRES_RUNTIME}"
+      if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+        podman run -d --name "${POSTGRES_NAME}" \
+          -e POSTGRES_USER=ax -e POSTGRES_PASSWORD=ax -e POSTGRES_DB=ax \
+          -p "${HOST}:${POSTGRES_PORT}:5432" --memory 512m "${POSTGRES_IMAGE}" >/dev/null
+      else
+        container run -d --progress none --name "${POSTGRES_NAME}" \
+          -e POSTGRES_USER=ax -e POSTGRES_PASSWORD=ax -e POSTGRES_DB=ax \
+          -p "${HOST}:${POSTGRES_PORT}:5432" --memory 512M "${POSTGRES_IMAGE}" >/dev/null
+      fi
     fi
   fi
   wait_for_port "PostgreSQL" "${POSTGRES_PORT}"
   local deadline=$((SECONDS + WAIT_SECONDS))
-  while ! container exec "${POSTGRES_NAME}" psql -U ax -d ax -c "SELECT 1" >/dev/null 2>&1; do
+  while ! postgres_exec psql -U ax -d ax -c "SELECT 1" >/dev/null 2>&1; do
     if (( SECONDS >= deadline )); then
       die "PostgreSQL did not become ready within ${WAIT_SECONDS}s"
     fi
@@ -392,8 +427,8 @@ cmd_multi_up() {
   write_env
 
   start_postgres
-  container exec "${POSTGRES_NAME}" psql -U ax -d ax -tc "SELECT 1 FROM pg_database WHERE datname = 'ax_cluster_b'" | grep -q 1 || \
-    container exec "${POSTGRES_NAME}" psql -U ax -d ax -c "CREATE DATABASE ax_cluster_b" >/dev/null
+  postgres_exec psql -U ax -d ax -tc "SELECT 1 FROM pg_database WHERE datname = 'ax_cluster_b'" | grep -q 1 || \
+    postgres_exec psql -U ax -d ax -c "CREATE DATABASE ax_cluster_b" >/dev/null
 
   start_component substrate-local "${SUBSTRATE_PORT}" \
     "${BIN_DIR}/substrate-local" --config "${CONFIG_FILE}"
@@ -466,11 +501,17 @@ cmd_down() {
   stop_component substrate-local
   if [[ "${keep_postgres}" == "no" ]] && postgres_exists; then
     info "Removing PostgreSQL container ${POSTGRES_NAME}"
-    container delete --force "${POSTGRES_NAME}" >/dev/null 2>&1 || true
+    if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+      podman rm --force "${POSTGRES_NAME}" >/dev/null 2>&1 || true
+    else
+      container delete --force "${POSTGRES_NAME}" >/dev/null 2>&1 || true
+    fi
   fi
   # substrate-local stops actor containers on shutdown; report any that remain.
-  local leftovers
-  leftovers="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print $1}' || true)"
+  local leftovers=""
+  if command -v container >/dev/null 2>&1; then
+    leftovers="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print $1}' || true)"
+  fi
   if [[ -n "${leftovers}" ]]; then
     warn "actor containers remain (remove with 'reset' or 'container delete --force'):"
     printf '  %s\n' ${leftovers} >&2
@@ -501,12 +542,12 @@ cmd_status() {
     status_line substrate-local-b "${SUBSTRATE_B_PORT}"
     status_line ax-server-b "${SERVER_B_PORT}"
   fi
-  local actors podman_actors
-  actors="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print "  [apple]  " $1 "  " $5 "  " $6}' || true)"
+  local actors="" podman_actors=""
+  if command -v container >/dev/null 2>&1; then
+    actors="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print "  [apple]  " $1 "  " $5 "  " $6}' || true)"
+  fi
   if command -v podman >/dev/null 2>&1; then
     podman_actors="$(podman ps -a --format '{{.Names}}  {{.Status}}  {{.Ports}}' 2>/dev/null | awk '$1 ~ /^ate-/ {print "  [podman] " $0}' || true)"
-  else
-    podman_actors=""
   fi
   echo
   if [[ -n "${actors}" || -n "${podman_actors}" ]]; then
@@ -527,7 +568,11 @@ cmd_logs() {
   if [[ -z "${name}" ]]; then
     tail -n 50 -f "${LOG_DIR}"/*.log
   elif [[ "${name}" == "postgres" ]]; then
-    container logs --follow "${POSTGRES_NAME}"
+    if [[ "${POSTGRES_RUNTIME}" == "podman" ]]; then
+      podman logs --follow "${POSTGRES_NAME}"
+    else
+      container logs --follow "${POSTGRES_NAME}"
+    fi
   else
     [[ -f "${LOG_DIR}/${name}.log" ]] || die "no log for '${name}' (components: ${COMPONENTS[*]} postgres)"
     tail -n 50 -f "${LOG_DIR}/${name}.log"
@@ -536,12 +581,14 @@ cmd_logs() {
 
 cmd_reset() {
   cmd_down
-  local actors
-  actors="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print $1}' || true)"
-  for a in ${actors}; do
-    info "Removing actor container ${a}"
-    container delete --force "${a}" >/dev/null 2>&1 || true
-  done
+  local actors=""
+  if command -v container >/dev/null 2>&1; then
+    actors="$(container list --all 2>/dev/null | awk 'NR>1 && $1 ~ /^ate-/ {print $1}' || true)"
+    for a in ${actors}; do
+      info "Removing actor container ${a}"
+      container delete --force "${a}" >/dev/null 2>&1 || true
+    done
+  fi
   if command -v podman >/dev/null 2>&1; then
     local podman_actors
     podman_actors="$(podman ps -a --format '{{.Names}}' 2>/dev/null | awk '$1 ~ /^ate-/ {print $1}' || true)"

@@ -132,6 +132,13 @@ Running full Agent Substrate locally via Kind (`ax local start`) provides full p
 
 See [`docs/architecture.md`](docs/architecture.md) for actor lifecycle and dual-cluster diagrams, full Control API coverage, and configuration reference.
 
+### Guides & Further Reading
+
+- **[Apple `container` Quickstart (macOS)](docs/quickstart-apple-container.md)** — Zero-Docker walkthrough from `container system start` to `Workspace` fan-out and 0-RAM suspend/resume.
+- **[Rootless Podman Quickstart (macOS & Linux)](docs/quickstart-podman.md)** — Standalone rootless Podman setup (`AX_LOCAL_RUNTIME=podman make up`) and dual-runtime migration.
+- **[Choosing a Runtime: `substrate-local` vs. Kind vs. GKE](docs/choosing-a-runtime.md)** — Compatibility boundary and when to graduate to Kind (`ax local`) or Google Cloud GKE.
+- **[AX & Agent Substrate Concepts & Swarm Examples (`ghchinoy/ax-experiments`)](https://github.com/ghchinoy/ax-experiments)** — Visual architecture guides (`concepts/`) and multi-agent swarm, Genkit, and HITL recipes powered by `substrate-local`.
+
 ## Local Development
 
 ```bash

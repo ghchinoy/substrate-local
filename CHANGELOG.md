@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Standalone Podman-only mode in `scripts/ax-stack.sh` (`AX_LOCAL_RUNTIME=podman make up` runs PostgreSQL in Podman and cross-compiles `ax-runner` for host `GOARCH`, removing any Apple `container` requirement on macOS or Linux) [`substrate-local-daz`].
+- Dedicated Quickstarts (`docs/quickstart-apple-container.md`, `docs/quickstart-podman.md`) and runtime decision & compatibility boundary guide (`docs/choosing-a-runtime.md`: `substrate-local` vs. Kind vs. GKE) with links to `ghchinoy/ax-experiments` [`substrate-local-qzf`].
+
 ## [0.1.0] - 2026-11-25
 
 _Initial release._
