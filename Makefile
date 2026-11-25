@@ -20,7 +20,14 @@ BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 VERSION_PKG := github.com/ghchinoy/substrate-local/internal/version
 LDFLAGS := -s -w -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).Date=$(BUILD_DATE)
 
-.PHONY: build run test test-compat vet fmt up down multi-up multi-down status logs reset clean
+GRAPHVIZ_STYLE_DIR ?= $(abspath ../graphviz-style)
+LUSTROUS_THEME := $(GRAPHVIZ_STYLE_DIR)/theme/lustrous.gvpr
+GVPR ?= $(shell command -v gvpr 2>/dev/null || echo /opt/homebrew/bin/gvpr)
+DOT ?= $(shell command -v dot 2>/dev/null || echo /opt/homebrew/bin/dot)
+DIAGRAM_DOTS := $(sort $(wildcard docs/diagrams/*.dot))
+DIAGRAM_WEBPS := $(DIAGRAM_DOTS:.dot=-light.webp) $(DIAGRAM_DOTS:.dot=-dark.webp)
+
+.PHONY: build run test test-compat diagrams vet fmt up down multi-up multi-down status logs reset clean
 
 build:
 	mkdir -p bin
@@ -34,6 +41,14 @@ test:
 
 test-compat:
 	./scripts/test-ax-compat.sh
+
+diagrams: $(DIAGRAM_WEBPS)
+
+docs/diagrams/%-light.webp: docs/diagrams/%.dot $(LUSTROUS_THEME)
+	$(GVPR) -c -f $(LUSTROUS_THEME) -a light $< | $(DOT) -Twebp -o $@
+
+docs/diagrams/%-dark.webp: docs/diagrams/%.dot $(LUSTROUS_THEME)
+	$(GVPR) -c -f $(LUSTROUS_THEME) -a dark $< | $(DOT) -Twebp -o $@
 
 vet:
 	go vet ./...

@@ -1,0 +1,30 @@
+// Actor lifecycle on substrate-local: --entrypoint boot, inbound port-80 push,
+// 0-RAM suspend with /workspace tar.gz snapshots, and immutable Tag fan-out.
+digraph substrate_local_lifecycle {
+  label = "substrate-local · actor lifecycle, /workspace snapshots, and Tag fan-out";
+  rankdir = LR;
+  ranksep = 0.6;
+  nodesep = 0.45;
+
+  start     [label="", class="dot"];
+  suspended [label="Suspended\n(0 CPU, 0 RAM)", class="code"];
+  stage     [label="Pre-boot stage\n/run/ate/actor-uid +\n/workspace snapshot", class="emphasis"];
+  running   [label="Running microVM\n--entrypoint ax-runner :80", class="primary code"];
+  snap      [label="Actor snapshot\n<atespace>/<actor>.tar.gz", class="store code"];
+  tag       [label="Immutable Tag\ntags/<tag>.tar.gz", class="store code"];
+  childA    [label="Fan-out actor A\n(isolated copy)", class="cat-teal"];
+  childB    [label="Fan-out actor B\n(isolated copy)", class="cat-teal"];
+
+  start -> suspended [label="CreateActor"];
+  suspended -> stage [label="ResumeActor or\nwake-on-request", class="primary"];
+  stage -> running   [label="container / podman run\n+ POST task push", class="positive"];
+
+  running -> running [label="ax ssh (h2c)\n& /readyz", class="code"];
+  running -> snap    [label="SuspendActor\narchive /workspace", class="async"];
+  snap -> suspended  [label="stop container"];
+  snap -> stage      [label="restore on resume", class="async"];
+
+  snap -> tag        [label="CreateTag", class="primary"];
+  tag -> childA      [label="source_tag", class="positive"];
+  tag -> childB      [label="source_tag", class="positive"];
+}

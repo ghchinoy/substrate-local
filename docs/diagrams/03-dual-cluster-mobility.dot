@@ -1,0 +1,43 @@
+// Dual-cluster cross-runtime mobility: moving tasks and /workspace snapshots
+// between Apple container (Cluster A) and rootless Podman (Cluster B).
+digraph substrate_local_dual_cluster {
+  label = "substrate-local · dual-cluster cross-runtime mobility (Apple container <-> Podman)";
+  ranksep = 0.65;
+  nodesep = 0.5;
+  newrank = true;
+
+  cli [label="ax CLI / ax-stack.sh migrate\n(or ax promote --suspend-source)", class="primary code"];
+
+  subgraph cluster_a {
+    label = "Cluster A · Apple container (Virtualization.framework)";
+    class = "accent";
+    srvA  [label="ax-server :8090\ndb: ax", class="code"];
+    subA  [label="substrate-local :50051\nruntime: apple", class="code"];
+    vmA   [label="Apple microVM\nLinux 6.18.5 · vmnet", class="positive"];
+  }
+
+  subgraph cluster_b {
+    label = "Cluster B · Rootless Podman (libkrun)";
+    class = "accent";
+    srvB  [label="ax-server-b :8091\ndb: ax_cluster_b", class="code"];
+    subB  [label="substrate-local-b :50052\nruntime: podman", class="code"];
+    vmB   [label="Rootless container\nLinux 7.2.7 · 127.0.0.1:<port>", class="cat-teal"];
+  }
+
+  shared [label="Shared snapshot_dir\n.substrate-local/snapshots/<atespace>/<actor>.tar.gz", class="store code"];
+
+  {rank=same; srvA; srvB;}
+  {rank=same; subA; subB;}
+  {rank=same; vmA; vmB;}
+
+  cli -> srvA [label="1. suspend +\nexport YAML", class="primary"];
+  cli -> srvB [label="2. apply +\nresume", class="positive"];
+
+  srvA -> subA [label="SuspendActor"];
+  subA -> vmA  [label="stop microVM"];
+  subA -> shared [label="save /workspace.tar.gz", class="async"];
+
+  srvB -> subB [label="Create + ResumeActor"];
+  shared -> subB [label="hydrate /workspace", class="positive"];
+  subB -> vmB  [label="start container\n(data preserved)"];
+}

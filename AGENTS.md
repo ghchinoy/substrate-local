@@ -17,6 +17,7 @@ Standalone zero-Kubernetes Agent Substrate `v1.0.0` Control API + `atenet-router
 - `scripts/test-ax-compat.sh` — End-to-end contract regression suite (`make test-compat`) validating `substrate-local` against unmodified upstream `google/ax`
 - `examples/` — Sample `substrate-local.yaml` and `task-local.yaml`
 - `docs/architecture.md` — Architecture, runtime comparison, and limitations
+- `docs/diagrams/` — Semantic Graphviz `.dot` sources and dual-theme (`-light.webp` / `-dark.webp`) diagrams rendered via `make diagrams` (`../graphviz-style/theme/lustrous.gvpr`)
 
 ## Verification
 

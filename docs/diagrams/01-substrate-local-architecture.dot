@@ -1,0 +1,64 @@
+// How unmodified upstream AX connects to substrate-local (:50051) across
+// macOS Apple container (Virtualization.framework) and rootless Podman.
+digraph substrate_local_architecture {
+  label = "substrate-local · zero-Kubernetes Agent Substrate 1.0 runtime for AX";
+  ranksep = 0.65;
+  nodesep = 0.45;
+  newrank = true;
+
+  user  [label="Developer / Agent", class="terminal"];
+  axcli [label="ax CLI\n(unmodified upstream)", class="primary code"];
+
+  subgraph cluster_ax {
+    label = "Unmodified AX control plane (ax.io/v1alpha1)";
+    class = "accent";
+    axsrv [label="ax-server :8090\n(--substrate-endpoint, --router-url)", class="code"];
+    axdb  [label="PostgreSQL :5432\n(specs + locks)", class="store"];
+  }
+
+  subgraph cluster_sublocal {
+    label = "substrate-local :50051 (pkg/sublocal · go.ate.dev/substrate v1.0.0)";
+    class = "accent";
+    mux    [label="HTTP/1.1 + h2c multiplexer", class="primary code"];
+    ctrl   [label="ControlServer (gRPC)\nateapi/v1", class="code"];
+    router [label="Embedded atenet-router\nate-target-actor", class="code"];
+    snaps  [label="Snapshot & /run/ate store\n(.tar.gz + tags/)", class="store"];
+  }
+
+  subgraph cluster_runtimes {
+    label = "Local container sandboxes (zero Kind, zero Docker)";
+    subgraph cluster_apple {
+      label = "Apple container (Virtualization.framework)";
+      applevm [label="Linux arm64 microVM\nvmnet 192.168.64.x:80", class="positive"];
+      applerun [label="PID 1: ax-runner :80\n/workspace + /run/ate", class="code"];
+    }
+    subgraph cluster_podman {
+      label = "Rootless Podman (libkrun / Linux)";
+      podvm  [label="Rootless container\n127.0.0.1:<port> -> :80", class="cat-teal"];
+      podrun [label="PID 1: ax-runner :80\n/workspace + /run/ate", class="code"];
+    }
+  }
+
+  {rank=same; axsrv; axdb;}
+  {rank=same; ctrl; router;}
+
+  user  -> axcli [label="ax apply / resume / ssh"];
+  axcli -> axsrv [label="AX gRPC", class="primary code"];
+  axcli -> mux   [label="ax ssh (h2c)\nATENET_ROUTER_ADDR", class="code"];
+
+  axsrv -> axdb  [label="pgx", constraint=false];
+  axsrv -> mux   [label="Control gRPC +\n--router-url push", class="primary code"];
+
+  mux -> ctrl    [label="application/grpc"];
+  mux -> router  [label="ate-target-actor"];
+  router -> ctrl [label="wake on request", class="async", constraint=false];
+
+  ctrl -> snaps  [label="tar.gz + Tag", class="async"];
+  ctrl -> applevm [label="container run/stop"];
+  ctrl -> podvm   [label="podman run/stop"];
+
+  router -> applerun [label="HTTP/1.1 & h2c :80", class="positive"];
+  router -> podrun   [label="HTTP/1.1 & h2c", class="positive"];
+  applevm -> applerun [class="muted"];
+  podvm -> podrun     [class="muted"];
+}

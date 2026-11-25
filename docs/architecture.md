@@ -2,6 +2,32 @@
 
 `substrate-local` implements the **Agent Substrate `v1.0.0` Control gRPC API** (`go.ate.dev/substrate/api/ateapi/v1.ControlServer`) together with an embedded **`atenet-router`** (`ate-target-actor` HTTP/1.1 + HTTP/2 `h2c` reverse proxy), backed by macOS native **Apple `container`** (`/usr/local/bin/container` on `Virtualization.framework`) or **Podman** (`podman`, including default rootless `podman machine`).
 
+## Architecture Overview
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/01-substrate-local-architecture-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="diagrams/01-substrate-local-architecture-light.webp">
+  <img alt="substrate-local zero-Kubernetes Agent Substrate 1.0 architecture for unmodified AX" src="diagrams/01-substrate-local-architecture-light.webp">
+</picture>
+
+## Actor Lifecycle, Snapshots & Tag Fan-Out
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/02-lifecycle-and-snapshots-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="diagrams/02-lifecycle-and-snapshots-light.webp">
+  <img alt="substrate-local actor lifecycle, /workspace tar.gz snapshots, and immutable Tag fan-out" src="diagrams/02-lifecycle-and-snapshots-light.webp">
+</picture>
+
+## Dual-Cluster Cross-Runtime Mobility
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/03-dual-cluster-mobility-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="diagrams/03-dual-cluster-mobility-light.webp">
+  <img alt="substrate-local dual-cluster cross-runtime mobility between Apple container and rootless Podman" src="diagrams/03-dual-cluster-mobility-light.webp">
+</picture>
+
+*(Re-render all diagrams via `make diagrams` using `../graphviz-style/theme/lustrous.gvpr`.)*
+
 ## Production Agent Substrate vs. `substrate-local`
 
 | Agent Substrate Concept | Production (Kubernetes + gVisor) | `substrate-local` (`runtime: apple`) | `substrate-local` (`runtime: podman`) |

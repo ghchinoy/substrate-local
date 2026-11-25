@@ -18,6 +18,12 @@ Running full Agent Substrate locally via Kind (`ax local start`) gives full prod
 - **Cross-runtime dual-cluster mobility:** Run Cluster A on Apple `container` and Cluster B on rootless `podman` simultaneously to test `ax promote` and `/workspace` migration locally.
 - **Embeddable Go library (`pkg/sublocal`):** Zero dependency on `github.com/google/ax`; import `github.com/ghchinoy/substrate-local/pkg/sublocal` directly in Go tools or test harnesses.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/01-substrate-local-architecture-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/01-substrate-local-architecture-light.webp">
+  <img alt="substrate-local zero-Kubernetes Agent Substrate 1.0 architecture for unmodified AX" src="docs/diagrams/01-substrate-local-architecture-light.webp">
+</picture>
+
 ---
 
 ## Quick Start
