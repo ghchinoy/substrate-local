@@ -75,6 +75,7 @@ log.Fatal(httpServer.ListenAndServe())
 | `SUBSTRATE_LOCAL_SNAPSHOT_DIR` (`ATE_LOCAL_SNAPSHOT_DIR`) | `snapshot_dir` | *(empty)* | Host directory for `/workspace` snapshots, `tags/`, and `/run/ate` metadata |
 | `SUBSTRATE_LOCAL_SETUP_IMAGE` (`ATE_LOCAL_SETUP_IMAGE`) | `setup_image` | `alpine/git` | Fallback image for legacy warm setup |
 | `SUBSTRATE_LOCAL_INIT_IMAGE` (`ATE_LOCAL_INIT_IMAGE`) | `init_image` | *(auto)* | Optional custom Apple `container` `vminit` image |
+| `AX_RUNNER_VOLUME_IMAGE` | *(script)* | *(empty)* | Optional digest-pinned OCI runner volume image (e.g. `ghcr.io/google/ax/ax-runner-volume@sha256:...`) passed to `ax-server --runner-volume-image` and mounted read-only at `/opt/ax` |
 | `AX_VERSION` | *(script)* | `v0.4.0-rc.2` *(fallback)* | Clone-free upstream `google/ax` module tag/branch/commit (e.g. `v0.4.0-rc.2`, `main`) built straight from the Go module cache |
 | `AX_REPO` | *(script)* | `~/projects/ax` | Local `google/ax` checkout used when `AX_VERSION` is unset and the directory exists |
 

@@ -136,10 +136,11 @@ func (r *ActorRecord) toProto() *ateapipb.Actor {
 type Server struct {
 	ateapipb.UnimplementedControlServer
 
-	cfg        *Config
-	runner     ContainerRunner
-	http1Trans *http.Transport
-	h2cTrans   *http.Transport
+	cfg          *Config
+	runner       ContainerRunner
+	imageVolumes ImageVolumeResolver
+	http1Trans   *http.Transport
+	h2cTrans     *http.Transport
 
 	mu             sync.RWMutex
 	atespaces      map[string]bool
@@ -177,9 +178,19 @@ func NewServer(cfg *Config) (*Server, error) {
 	h2Trans.Protocols = new(http.Protocols)
 	h2Trans.Protocols.SetUnencryptedHTTP2(true)
 
+	imgResolver := cfg.ImageVolumeResolver
+	if imgResolver == nil {
+		cacheDir := cfg.ImageVolumeCacheDir
+		if cacheDir == "" && cfg.SnapshotDir != "" {
+			cacheDir = filepath.Join(cfg.SnapshotDir, "image-volumes")
+		}
+		imgResolver = NewOCIImageVolumeResolver(cacheDir, "")
+	}
+
 	s := &Server{
 		cfg:            cfg,
 		runner:         runner,
+		imageVolumes:   imgResolver,
 		http1Trans:     h1Trans,
 		h2cTrans:       h2Trans,
 		atespaces:      make(map[string]bool),
@@ -350,6 +361,13 @@ func (s *Server) CreateActorTemplate(ctx context.Context, req *ateapipb.CreateAc
 		CPUs:      defaultTC.CPUs,
 		Memory:    defaultTC.Memory,
 	}
+	imageVolumeRefs := make(map[string]string)
+	for _, v := range tmpl.GetVolumes() {
+		if ref := strings.TrimSpace(v.GetImage().GetReference()); ref != "" && v.GetName() != "" {
+			imageVolumeRefs[v.GetName()] = ref
+		}
+	}
+
 	if len(tmpl.GetContainers()) > 0 {
 		c := tmpl.GetContainers()[0]
 		tc.Image = c.GetImage()
@@ -362,6 +380,15 @@ func (s *Server) CreateActorTemplate(ctx context.Context, req *ateapipb.CreateAc
 		}
 		if c.GetWakeupProbe() != nil && c.GetWakeupProbe().GetHttpGet() != nil && c.GetWakeupProbe().GetHttpGet().GetPort() > 0 {
 			tc.Port = int(c.GetWakeupProbe().GetHttpGet().GetPort())
+		}
+		for _, vm := range c.GetVolumeMounts() {
+			if ref, ok := imageVolumeRefs[vm.GetName()]; ok && vm.GetMountPath() != "" {
+				tc.ImageVolumes = append(tc.ImageVolumes, ImageVolumeMount{
+					Name:      vm.GetName(),
+					Reference: ref,
+					MountPath: vm.GetMountPath(),
+				})
+			}
 		}
 	}
 	if limits := tmpl.GetResources().GetLimits(); limits != nil {
@@ -383,11 +410,10 @@ func (s *Server) CreateActorTemplate(ctx context.Context, req *ateapipb.CreateAc
 	if tc.Image == "" {
 		tc.Image = "debian:12"
 	}
-	// Images in */ax-images/* (such as ghcr.io/ghchinoy/ax-images/* and
-	// ghcr.io/rakyll/ax-images/*) already ship a multi-arch linux/arm64
-	// runner (linked to /usr/local/bin/ax-agent). Skip bind-mounting the
-	// host's default runner over it.
-	if strings.Contains(tc.Image, "/ax-images/") {
+	// Skip bind-mounting the default host ax-runner when the template supplies
+	// an explicit OCI image volume (e.g. --runner-volume-image mounted at
+	// /opt/ax) or targets */ax-images/* which already ship a multi-arch runner.
+	if len(tc.ImageVolumes) > 0 || strings.Contains(tc.Image, "/ax-images/") {
 		var filtered []string
 		for _, v := range tc.Volumes {
 			if !strings.HasSuffix(v, ":/usr/local/bin/ax-runner") && !strings.HasSuffix(v, ":/usr/local/bin/ax-task-runner") {
@@ -435,23 +461,41 @@ func (s *Server) GetActorTemplate(ctx context.Context, req *ateapipb.GetActorTem
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "template %q not found", ref.GetName())
 	}
+
+	return templateConfigToProto(ref.GetAtespace(), ref.GetName(), tc), nil
+}
+
+func templateConfigToProto(atespace, name string, tc TemplateConfig) *ateapipb.ActorTemplate {
 	uid := tc.UID
 	if uid == "" {
-		uid = deterministicUUID("template/" + resourceKey(atespace, ref.GetName()))
+		uid = deterministicUUID("template/" + resourceKey(atespace, name))
 	}
-
+	var vols []*ateapipb.Volume
+	var mounts []*ateapipb.VolumeMount
+	for _, iv := range tc.ImageVolumes {
+		vols = append(vols, &ateapipb.Volume{
+			Name:  iv.Name,
+			Image: &ateapipb.ImageVolumeSource{Reference: iv.Reference},
+		})
+		mounts = append(mounts, &ateapipb.VolumeMount{
+			Name:      iv.Name,
+			MountPath: iv.MountPath,
+		})
+	}
 	return &ateapipb.ActorTemplate{
 		Metadata: &ateapipb.ResourceMetadata{
-			Atespace: ref.GetAtespace(),
-			Name:     ref.GetName(),
+			Atespace: atespace,
+			Name:     name,
 			Uid:      uid,
 		},
+		Volumes: vols,
 		Containers: []*ateapipb.Container{{
-			Name:    "guest",
-			Image:   tc.Image,
-			Command: tc.Command,
+			Name:         "guest",
+			Image:        tc.Image,
+			Command:      tc.Command,
+			VolumeMounts: mounts,
 		}},
-	}, nil
+	}
 }
 
 // ListActorTemplates returns all known ActorTemplates, optionally filtered by atespace.
@@ -465,22 +509,7 @@ func (s *Server) ListActorTemplates(ctx context.Context, req *ateapipb.ListActor
 		if filterAtespace != "" && tc.Atespace != filterAtespace {
 			continue
 		}
-		uid := tc.UID
-		if uid == "" {
-			uid = deterministicUUID("template/" + resourceKey(tc.Atespace, tc.Name))
-		}
-		list = append(list, &ateapipb.ActorTemplate{
-			Metadata: &ateapipb.ResourceMetadata{
-				Atespace: tc.Atespace,
-				Name:     tc.Name,
-				Uid:      uid,
-			},
-			Containers: []*ateapipb.Container{{
-				Name:    "guest",
-				Image:   tc.Image,
-				Command: tc.Command,
-			}},
-		})
+		list = append(list, templateConfigToProto(tc.Atespace, tc.Name, tc))
 	}
 	return &ateapipb.ListActorTemplatesResponse{
 		ActorTemplates: list,
@@ -686,6 +715,13 @@ func (s *Server) ResumeActor(ctx context.Context, req *ateapipb.ResumeActorReque
 		}
 		for _, vol := range tmpl.Volumes {
 			runArgs = append(runArgs, "-v", resolveVolumeSpec(vol))
+		}
+		for _, iv := range tmpl.ImageVolumes {
+			hostDir, err := s.imageVolumes.Resolve(ctx, iv.Reference)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "resolving image volume %q (%s) for actor %q: %v", iv.Name, iv.Reference, key, err)
+			}
+			runArgs = append(runArgs, "-v", fmt.Sprintf("%s:%s:ro", hostDir, iv.MountPath))
 		}
 		if s.cfg.SnapshotDir != "" {
 			if metaDir, ok := s.stageActorMetadataDir(actor); ok {

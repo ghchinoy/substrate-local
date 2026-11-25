@@ -46,6 +46,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AX_REPO="${AX_REPO:-${HOME}/projects/ax}"
 AX_VERSION="${AX_VERSION:-}"
 DEFAULT_AX_VERSION="v0.4.0-rc.2"
+AX_RUNNER_VOLUME_IMAGE="${AX_RUNNER_VOLUME_IMAGE:-}"
 cd "${REPO_ROOT}"
 
 RUNTIME="${AX_LOCAL_RUNTIME:-apple}"
@@ -367,6 +368,11 @@ cmd_up() {
   write_config
   write_env
 
+  local extra_ax_args=()
+  if [[ -n "${AX_RUNNER_VOLUME_IMAGE}" ]]; then
+    extra_ax_args+=(--runner-volume-image "${AX_RUNNER_VOLUME_IMAGE}")
+  fi
+
   start_postgres
   start_component substrate-local "${SUBSTRATE_PORT}" \
     "${BIN_DIR}/substrate-local" --config "${CONFIG_FILE}"
@@ -377,7 +383,8 @@ cmd_up() {
     --store "postgres://ax:ax@${HOST}:${POSTGRES_PORT}/ax?sslmode=disable" \
     --substrate-endpoint "${HOST}:${SUBSTRATE_PORT}" \
     --substrate-plaintext \
-    --router-url "http://${HOST}:${SUBSTRATE_PORT}"
+    --router-url "http://${HOST}:${SUBSTRATE_PORT}" \
+    "${extra_ax_args[@]}"
 
   echo
   cmd_status
@@ -430,6 +437,11 @@ cmd_multi_up() {
   postgres_exec psql -U ax -d ax -tc "SELECT 1 FROM pg_database WHERE datname = 'ax_cluster_b'" | grep -q 1 || \
     postgres_exec psql -U ax -d ax -c "CREATE DATABASE ax_cluster_b" >/dev/null
 
+  local extra_ax_args=()
+  if [[ -n "${AX_RUNNER_VOLUME_IMAGE}" ]]; then
+    extra_ax_args+=(--runner-volume-image "${AX_RUNNER_VOLUME_IMAGE}")
+  fi
+
   start_component substrate-local "${SUBSTRATE_PORT}" \
     "${BIN_DIR}/substrate-local" --config "${CONFIG_FILE}"
   start_component ax-server "${SERVER_PORT}" \
@@ -439,7 +451,8 @@ cmd_multi_up() {
     --store "postgres://ax:ax@${HOST}:${POSTGRES_PORT}/ax?sslmode=disable" \
     --substrate-endpoint "${HOST}:${SUBSTRATE_PORT}" \
     --substrate-plaintext \
-    --router-url "http://${HOST}:${SUBSTRATE_PORT}"
+    --router-url "http://${HOST}:${SUBSTRATE_PORT}" \
+    "${extra_ax_args[@]}"
 
   start_component substrate-local-b "${SUBSTRATE_B_PORT}" \
     "${BIN_DIR}/substrate-local" --config "${CONFIG_B_FILE}"
@@ -450,7 +463,8 @@ cmd_multi_up() {
     --store "postgres://ax:ax@${HOST}:${POSTGRES_PORT}/ax_cluster_b?sslmode=disable" \
     --substrate-endpoint "${HOST}:${SUBSTRATE_B_PORT}" \
     --substrate-plaintext \
-    --router-url "http://${HOST}:${SUBSTRATE_B_PORT}"
+    --router-url "http://${HOST}:${SUBSTRATE_B_PORT}" \
+    "${extra_ax_args[@]}"
 
   echo
   cmd_status

@@ -24,34 +24,37 @@ import (
 
 // TemplateConfig defines container parameters for an ActorTemplate.
 type TemplateConfig struct {
-	Atespace  string            `yaml:"atespace,omitempty"`
-	Name      string            `yaml:"name,omitempty"`
-	UID       string            `yaml:"-"`
-	Image     string            `yaml:"image"`
-	InitImage string            `yaml:"init_image,omitempty"`
-	Port      int               `yaml:"port,omitempty"` // Guest/readyz or HarnessService port in container (default 80)
-	Command   []string          `yaml:"command,omitempty"`
-	WorkDir   string            `yaml:"work_dir,omitempty"`
-	Env       map[string]string `yaml:"env,omitempty"`
-	Volumes   []string          `yaml:"volumes,omitempty"`
-	CPUs      int               `yaml:"cpus,omitempty"`
-	Memory    string            `yaml:"memory,omitempty"`
+	Atespace     string             `yaml:"atespace,omitempty"`
+	Name         string             `yaml:"name,omitempty"`
+	UID          string             `yaml:"-"`
+	Image        string             `yaml:"image"`
+	InitImage    string             `yaml:"init_image,omitempty"`
+	Port         int                `yaml:"port,omitempty"` // Guest/readyz or HarnessService port in container (default 80)
+	Command      []string           `yaml:"command,omitempty"`
+	WorkDir      string             `yaml:"work_dir,omitempty"`
+	Env          map[string]string  `yaml:"env,omitempty"`
+	Volumes      []string           `yaml:"volumes,omitempty"`
+	ImageVolumes []ImageVolumeMount `yaml:"image_volumes,omitempty"`
+	CPUs         int                `yaml:"cpus,omitempty"`
+	Memory       string             `yaml:"memory,omitempty"`
 }
 
 // Config configures the local Substrate Control server.
 type Config struct {
-	Address         string                    `yaml:"address"`                    // gRPC + HTTP listen address (default ":50051")
-	Runtime         string                    `yaml:"runtime,omitempty"`          // Container runtime: "apple" (default) or "podman"
-	SnapshotDir     string                    `yaml:"snapshot_dir,omitempty"`     // Optional directory to save/restore /workspace snapshots across Suspend/Resume
-	SetupImage      string                    `yaml:"setup_image,omitempty"`      // Image with git+/bin/sh used for lazy warm Workspace setup (default "alpine/git")
-	ContainerPrefix string                    `yaml:"container_prefix,omitempty"` // Container name prefix (default "ate")
-	DefaultTemplate string                    `yaml:"default_template,omitempty"`
-	InitImage       string                    `yaml:"init_image,omitempty"` // Optional custom Apple container vminit image
-	Templates       map[string]TemplateConfig `yaml:"templates,omitempty"`
-	ReadyTimeout    time.Duration             `yaml:"ready_timeout,omitempty"`
-	BinaryPath      string                    `yaml:"binary_path,omitempty"`
+	Address             string                    `yaml:"address"`                          // gRPC + HTTP listen address (default ":50051")
+	Runtime             string                    `yaml:"runtime,omitempty"`                // Container runtime: "apple" (default) or "podman"
+	SnapshotDir         string                    `yaml:"snapshot_dir,omitempty"`           // Optional directory to save/restore /workspace snapshots across Suspend/Resume
+	ImageVolumeCacheDir string                    `yaml:"image_volume_cache_dir,omitempty"` // Optional directory to cache extracted OCI image volumes (default <snapshot_dir>/image-volumes)
+	SetupImage          string                    `yaml:"setup_image,omitempty"`            // Image with git+/bin/sh used for lazy warm Workspace setup (default "alpine/git")
+	ContainerPrefix     string                    `yaml:"container_prefix,omitempty"`       // Container name prefix (default "ate")
+	DefaultTemplate     string                    `yaml:"default_template,omitempty"`
+	InitImage           string                    `yaml:"init_image,omitempty"` // Optional custom Apple container vminit image
+	Templates           map[string]TemplateConfig `yaml:"templates,omitempty"`
+	ReadyTimeout        time.Duration             `yaml:"ready_timeout,omitempty"`
+	BinaryPath          string                    `yaml:"binary_path,omitempty"`
 
-	Runner ContainerRunner `yaml:"-"` // Custom runner for unit testing
+	Runner              ContainerRunner     `yaml:"-"` // Custom runner for unit testing
+	ImageVolumeResolver ImageVolumeResolver `yaml:"-"` // Custom OCI image volume resolver for testing
 }
 
 // LoadConfig loads configuration from a YAML file or returns defaults.

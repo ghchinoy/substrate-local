@@ -52,7 +52,7 @@ Promote your unchanged manifests (`ax promote task <name> --to <gke-context>`) t
 - **In scope (maintained at parity with upstream AX):**
   - `ateapi/v1.ControlServer` core lifecycle (**24/42 RPCs**): `Atespace`, `ActorTemplate`, `Actor` (`Create`/`Get`/`List`/`Resume`/`Suspend`/`Revert`/`Delete`), `Tag` (`Create`/`Get`/`List`/`Delete` + `source_tag`), `ActorEgressPolicy` CRUD, and `ListWorkers`.
   - Embedded HTTP/1.1 + HTTP/2 `h2c` `atenet-router` (`ate-target-actor` header + wake-on-request).
-  - Container `--entrypoint` parity with `Container.command`, `/run/ate/actor-uid` projection (and future `substrate#3876` per-actor config), `/workspace` `.tar.gz` volume snapshots, and upcoming `ActorTemplate` `/opt/ax` runner-volume mounts.
+  - Container `--entrypoint` parity with `Container.command`, `/run/ate/actor-uid` projection (and future `substrate#3876` per-actor config), `/workspace` `.tar.gz` volume snapshots, and read-only `ActorTemplate` OCI image volumes (`/opt/ax` via `--runner-volume-image`).
 - **Explicit non-goals (use Kind or GKE instead):**
   - Privileged host firewall / L7 Envoy `atenet-egress` containment and `MintActorJwt`.
   - Userspace RAM checkpointing (`runsc --checkpoint`); AX cold-start resume (`#683`) already persists state on `/workspace`.
