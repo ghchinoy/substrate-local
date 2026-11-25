@@ -1,0 +1,12 @@
+# Local Agent Substrate Control + atenet-router configuration.
+# Run with: substrate-local --config examples/substrate-local.yaml
+address: "127.0.0.1:50051"
+runtime: "apple" # "apple" (macOS Virtualization.framework) or "podman" (rootless OK)
+container_prefix: "ate"
+ready_timeout: "20s"
+templates:
+  default:
+    image: "ghcr.io/google/ax/ax-runner@sha256:0937ebe5ad2d8db6bb25e88ded44d2d65de1b1bd8f0a9a97c6bb3787407d9947"
+    port: 80
+    cpus: 2
+    memory: "1024M"

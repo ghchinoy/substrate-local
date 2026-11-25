@@ -1,0 +1,12 @@
+# Minimal AX Task manifest targeting substrate-local with the public
+# google/ax v0.4.0-rc.2 ax-runner image.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: local-task
+  atespace: default
+spec:
+  profile:
+    image: "ghcr.io/google/ax/ax-runner@sha256:0937ebe5ad2d8db6bb25e88ded44d2d65de1b1bd8f0a9a97c6bb3787407d9947"
+  commands: ["sh", "-c", "echo 'hello from substrate-local' && sleep 3600"]
+  debug: true
