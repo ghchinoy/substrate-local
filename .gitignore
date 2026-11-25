@@ -1,0 +1,18 @@
+# Binaries
+bin/
+/substrate-local
+*.exe
+*.test
+
+# Local AX stack state (scripts/ax-stack.sh)
+.substrate-local/
+.tmp/
+.vscode/
+.DS_Store
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
