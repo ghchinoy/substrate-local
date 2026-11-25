@@ -20,6 +20,7 @@ Standalone zero-Kubernetes Agent Substrate `v1.0.0` Control API + `atenet-router
 - `docs/quickstart-apple-container.md` — macOS Apple `container` + AX quickstart
 - `docs/quickstart-podman.md` — Rootless Podman + AX quickstart (macOS & Linux)
 - `docs/choosing-a-runtime.md` — Compatibility boundary & decision guide (`substrate-local` vs. Kind vs. GKE)
+- `docs/go-app-integration.md` — Integration guide for external Go control planes driving stock `ax` + `substrate-local` (ephemeral audit jobs, stack discovery, offline/untrusted-code guidance)
 - `docs/architecture.md` — Architecture, runtime comparison, and limitations
 - `docs/diagrams/` — Semantic Graphviz `.dot` sources and dual-theme (`-light.webp` / `-dark.webp`) diagrams rendered via `make diagrams` (`../graphviz-style/theme/lustrous.gvpr`)
 

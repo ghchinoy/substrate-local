@@ -1,0 +1,52 @@
+# Ephemeral one-shot repository audit Task for external Go control planes
+# (e.g. OpenSourcerer) driving stock google/ax against substrate-local.
+#
+# Because AX v0.4 keeps TaskStatus strictly control-plane-only (#756), the task
+# stays Running after its command exits. The command writes structured outputs
+# under /workspace/.ax/ and atomically signals completion via exit-code so the
+# host orchestrator can poll and fetch artifacts over `ax ssh`, then delete the task.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: audit-example-001
+  atespace: audits
+spec:
+  profile:
+    image: "ghcr.io/google/ax/ax-runner@sha256:0937ebe5ad2d8db6bb25e88ded44d2d65de1b1bd8f0a9a97c6bb3787407d9947"
+    resources:
+      limits:
+        cpu: "2"
+        memory: "1Gi"
+  debug: true # Required so the host orchestrator can poll & fetch artifacts via `ax ssh`
+  config:
+    repo_url: "https://github.com/chalk/chalk.git"
+    ref: "HEAD"
+    checks: ["license", "readme"]
+  commands:
+    - sh
+    - -c
+    - |
+      set -eu
+      mkdir -p /workspace/.ax /workspace/repo
+
+      # Example deterministic audit producing structured verdict.json + patch.diff.
+      python3 - <<'PY'
+      import json, os, pathlib, subprocess
+
+      cfg = json.loads(pathlib.Path(os.environ["AX_CONFIG_FILE"]).read_text())
+      out_dir = pathlib.Path("/workspace/.ax")
+
+      verdict = {
+          "status": "pass",
+          "repo_url": cfg.get("repo_url", ""),
+          "ref": cfg.get("ref", ""),
+          "checks": cfg.get("checks", []),
+          "findings": [],
+      }
+      (out_dir / "verdict.json").write_text(json.dumps(verdict, indent=2) + "\n")
+      (out_dir / "patch.diff").write_text("")
+      PY
+
+      # Atomically publish completion status last so the orchestrator never reads partial files.
+      echo "0" > /workspace/.ax/exit-code.tmp
+      mv /workspace/.ax/exit-code.tmp /workspace/.ax/exit-code

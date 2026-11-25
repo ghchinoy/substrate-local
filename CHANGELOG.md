@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- External Go app integration guide (`docs/go-app-integration.md`) and runnable ephemeral audit job manifest (`examples/task-audit-job.yaml`) covering one-shot `verdict.json`/`patch.diff` retrieval over `ax ssh`, stack discovery (`AX_SERVER` / `ATENET_ROUTER_ADDR` / `pkg/sublocal`), and offline/untrusted-code audit guidance [`substrate-local-g6v`].
 - Read-only `ActorTemplate` OCI image volume support (`pkg/sublocal/imagevolume.go`), pulling and caching `FROM scratch` and multi-layer OCI image volumes via `go-containerregistry` for `linux/<GOARCH>` and mounting `-v <cache>:<mountPath>:ro` (enabling `ax-server --runner-volume-image` `/opt/ax/ax-runner` on unmodified prebuilt agent images and `AX_RUNNER_VOLUME_IMAGE` in `scripts/ax-stack.sh`) [`substrate-local-sqb`].
 - Standalone Podman-only mode in `scripts/ax-stack.sh` (`AX_LOCAL_RUNTIME=podman make up` runs PostgreSQL in Podman and cross-compiles `ax-runner` for host `GOARCH`, removing any Apple `container` requirement on macOS or Linux) [`substrate-local-daz`].
 - Dedicated Quickstarts (`docs/quickstart-apple-container.md`, `docs/quickstart-podman.md`) and runtime decision & compatibility boundary guide (`docs/choosing-a-runtime.md`: `substrate-local` vs. Kind vs. GKE) with links to `ghchinoy/ax-experiments` [`substrate-local-qzf`].
