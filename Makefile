@@ -27,7 +27,7 @@ DOT ?= $(shell command -v dot 2>/dev/null || echo /opt/homebrew/bin/dot)
 DIAGRAM_DOTS := $(sort $(wildcard docs/diagrams/*.dot))
 DIAGRAM_WEBPS := $(DIAGRAM_DOTS:.dot=-light.webp) $(DIAGRAM_DOTS:.dot=-dark.webp)
 
-.PHONY: build run test test-compat diagrams vet fmt up down multi-up multi-down status logs reset clean
+.PHONY: build run test test-compat check-drift diagrams vet fmt up down multi-up multi-down status logs reset clean
 
 build:
 	mkdir -p bin
@@ -41,6 +41,9 @@ test:
 
 test-compat:
 	./scripts/test-ax-compat.sh
+
+check-drift:
+	./scripts/check-substrate-drift.sh
 
 diagrams: $(DIAGRAM_WEBPS)
 

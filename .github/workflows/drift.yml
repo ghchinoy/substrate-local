@@ -1,0 +1,25 @@
+name: Upstream Drift Check
+
+on:
+  schedule:
+    # Every Monday at 14:00 UTC
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Check upstream Agent Substrate & AX drift
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/check-substrate-drift.sh
+          ./scripts/check-substrate-drift.sh --markdown >> "${GITHUB_STEP_SUMMARY}"

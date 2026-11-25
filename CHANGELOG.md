@@ -18,5 +18,6 @@ _Initial standalone release preparation._
 - End-to-end upstream `google/ax` contract regression suite (`scripts/test-ax-compat.sh` / `make test-compat`) validating `hack/tour.sh` conformance, PID-1/plain-image runner injection, `>1 MiB` `h2c` `ax ssh` streaming, and optional dual-runtime Apple `container` ↔ rootless Podman mobility + `ax promote` [`substrate-local-hky`].
 - Build-time version/commit/date stamping (`substrate-local --version` and `substrate-local version`), GitHub Actions CI (`.github/workflows/ci.yml`), and tag-triggered multi-platform release workflow (`.github/workflows/release.yml` for `darwin`/`linux` `arm64`/`amd64` + `checksums.txt`) [`substrate-local-7kc`, `substrate-local-an3`].
 - Dual-theme (`light`/`dark` WebP) Lustrous Graphviz architecture, lifecycle/snapshot, and dual-cluster mobility diagrams (`docs/diagrams/`, `make diagrams`) embedded in `README.md` and `docs/architecture.md` [`substrate-local-0rq`].
+- Upstream drift tracking via `TestControlServerCoverage` (reflection-checked `ateapi/v1.ControlServer` RPC allowlist) and `scripts/check-substrate-drift.sh` (`make check-drift` + weekly `.github/workflows/drift.yml`) comparing pinned `go.ate.dev/substrate` and `google/ax` releases [`substrate-local-2mm`].
 
 [Unreleased]: https://github.com/ghchinoy/substrate-local/commits/main
