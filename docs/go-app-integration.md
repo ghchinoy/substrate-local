@@ -1,6 +1,14 @@
 # Integrating External Go Apps with Stock AX + `substrate-local`
 
-This guide is for Go control planes and developer tools (such as **OpenSourcerer** or custom repo-audit orchestrators) that drive **unmodified upstream [AX](https://github.com/google/ax)** (`ax` CLI or `github.com/google/ax/client`) backed by `substrate-local`.
+This guide is for Go control planes and developer tools — such as repository auditors, CI/code-review services, or multi-agent orchestrators — that drive **unmodified upstream [AX](https://github.com/google/ax)** (`ax` CLI or `github.com/google/ax/client`) backed by `substrate-local`.
+
+## Why Integrate This Way?
+
+Rather than invoking container CLIs directly inside your application, driving stock `ax` against `substrate-local` gives an external Go app three durable advantages:
+
+1. **Clean runtime decoupling:** Your application speaks a declarative, Kubernetes-shaped API (`Task`, `Workspace`, `Gateway`, `Model`) while `ax-server` and `substrate-local` handle sandbox provisioning, `--entrypoint` injection, `/workspace` snapshotting, and `h2c` guest exec.
+2. **Fast, Docker-free local execution:** Developers and laptop-resident tools get ~3-second microVM/rootless-container isolation via Apple `container` or rootless Podman with 0-RAM suspend/resume — without requiring Docker Desktop or a 6–8 GiB Kind VM.
+3. **Zero-rewrite path to production:** The exact same Go driver and Task manifests graduate unchanged to Kind (`ax local start`) or Google Cloud GKE simply by switching `AX_SERVER` or the kubeconfig context whenever a workload needs strict `atenet-egress` containment or multi-node autoscaling.
 
 > **Key AX v0.4 architectural invariant (`google/ax#756`):** AX is a pure control plane. `TaskStatus` mirrors Substrate's `ActorState` (`Suspended`, `Running`, `Crashed`, …) and does **not** report command exit codes or outputs. One-shot tasks remain `Running` after their command finishes — the **external Go orchestrator** owns completion detection, artifact retrieval, and teardown.
 
@@ -12,12 +20,32 @@ This guide is for Go control planes and developer tools (such as **OpenSourcerer
 
 For ephemeral jobs (like auditing a repository and returning a structured `verdict.json` + `patch.diff`):
 
-1. **Use a unique task name per run** (e.g. `audit-<repo>-<shortid>`) in a dedicated `atespace` (e.g. `audits`), because AX `Task` resources are immutable.
+1. **Use a unique task name per run** (e.g. `audit-<repo>-<shortid>`) in a dedicated `atespace` (e.g. `audits`), because AX `Task` resources are immutable. **Atespaces are auto-created on first `ax apply`** — both `ax-server` and `substrate-local` create `atespace: audits` automatically with no prior setup call.
 2. **Pass structured inputs via `spec.config`** (mounted by `ax-runner` as JSON at `$AX_CONFIG_FILE`) and **`spec.goal.text`** (`$AX_GOAL_FILE`), or bind a pre-warmed `Workspace` when auditing the same repository across multiple checks.
-3. **Set `spec.debug: true`** so the host Go app can poll and fetch artifacts over `ax ssh`.
+3. **Set `spec.debug: true`** so the host Go app can stream inputs in and poll/fetch artifacts over `ax ssh`.
 4. **Write artifacts first, then atomically publish `/workspace/.ax/exit-code` last** (`mv exit-code.tmp exit-code`) so polling never observes half-written JSON or diffs.
 
 See the complete runnable manifest in [`examples/task-audit-job.yaml`](../examples/task-audit-job.yaml).
+
+### Uploading Private Repositories Without Secrets in the Sandbox
+
+When auditing a private repository, clone it on the host (keeping Git/SSH credentials strictly outside the sandbox), strip `.git/config` remote tokens, and stream the repository directly into `/workspace/repo` over `ax ssh` stdin:
+
+```bash
+ax -a audits ssh <task> -- mkdir -p /workspace/repo
+COPYFILE_DISABLE=1 tar --no-xattrs -C /host/path/to/repo -czf - . \
+  | ax -a audits ssh <task> -- tar -C /workspace/repo -xzf -
+```
+
+- **Verified throughput & integrity:** Streaming multi-megabyte tarballs (verified with 10 MiB binary payloads, exact SHA-256 match) works reliably over `substrate-local`'s `h2c` router. On macOS, setting `COPYFILE_DISABLE=1` and `--no-xattrs` avoids harmless BSD `LIBARCHIVE.xattr` warnings inside Linux GNU `tar`.
+- **Coordinating start after upload (two options):**
+  - **Marker handshake (best for long-running / detached audits):** Have `spec.commands` wait on a host-written ready marker before running (`while [ ! -f /workspace/.ax/ready ]; do sleep 0.2; done; <run-audit>`). After the `tar` upload finishes, the host runs `ax ssh <task> -- touch /workspace/.ax/ready` and then polls for `/workspace/.ax/exit-code`.
+  - **Direct `ax ssh` exec (simplest for short synchronous audits):** Start the task with `commands: ["sleep", "3600"]`, stream the repo tarball via `ax ssh`, and execute the audit command directly via `ax ssh <task> -- <audit-cmd>` to capture stdout/stderr and the exit code synchronously without polling.
+
+### Base Image Toolset vs. Language Images (`AX_RUNNER_VOLUME_IMAGE`)
+
+- **Stock `ghcr.io/google/ax/ax-runner` (`v0.4.0-rc.2`, `python:3.12-slim` base) includes:** `python3` (`3.12`), `git`, `curl`, `ssh`, `bash`, `tar`, `ps` (`procps`), and `ca-certificates`. It does **not** include `go`, `node`, `npm`, `rustc`, or language-specific linters.
+- **For Go, Node, Rust, or custom toolchains:** Start `ax-server` with `AX_RUNNER_VOLUME_IMAGE=ghcr.io/google/ax/ax-runner-volume@sha256:a85dc4ac3e4b060d9157e3f80c01463544e79a0e92106bacad1e4f3f3cf5e4d5` (`--runner-volume-image`), and set `spec.profile.image` to any digest-pinned language image (e.g. `golang:1.25-alpine@sha256:...` or `node:22-slim@sha256:...`). `substrate-local` pulls and caches the runner volume once and mounts it read-only at `/opt/ax` (`PID 1 = /opt/ax/ax-runner`) — no custom runner Dockerfile required.
 
 ### Go Orchestrator Lifecycle Pattern
 
@@ -145,7 +173,7 @@ Keep `substrate-local` + `ax-server` running via `make up` (so PostgreSQL and ca
 | `ATENET_ROUTER_ADDR` | `127.0.0.1:50051` | `ax ssh` (routes `h2c` gRPC directly to `substrate-local`, skipping `kubectl port-forward`) |
 | `AX_BIN` | `.substrate-local/bin/ax` or `ax` on `PATH` | External Go app invoking `ax` |
 
-**Avoiding port `8080` collisions:** `scripts/ax-stack.sh` intentionally runs `ax-server` on **`:8090`** (not `:8080`) so web UIs or API servers like OpenSourcerer can bind `:8080` without conflict. Always pass `--server "$AX_SERVER"` explicitly rather than relying on `ax`'s `:8080` fallback.
+**Avoiding port `8080` collisions:** `scripts/ax-stack.sh` intentionally runs `ax-server` on **`:8090`** (not `:8080`) so external web UIs or API servers can bind `:8080` without conflict. Always pass `--server "$AX_SERVER"` explicitly rather than relying on `ax`'s `:8080` fallback.
 
 **Auto-discovery fallback in Go:** Look for explicit `AX_SERVER` / `ATENET_ROUTER_ADDR` in `os.Getenv` first; if unset, optionally parse key=value lines from `<substrate-local-repo>/.substrate-local/env` (`export KEY=VALUE`), and run a quick preflight check before accepting jobs:
 

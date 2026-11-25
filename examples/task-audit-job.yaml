@@ -1,5 +1,5 @@
 # Ephemeral one-shot repository audit Task for external Go control planes
-# (e.g. OpenSourcerer) driving stock google/ax against substrate-local.
+# driving stock google/ax against substrate-local.
 #
 # Because AX v0.4 keeps TaskStatus strictly control-plane-only (#756), the task
 # stays Running after its command exits. The command writes structured outputs
