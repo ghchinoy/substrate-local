@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig, fontProviders } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
@@ -13,6 +13,7 @@ export default defineConfig({
       description:
         'Zero-Kubernetes local Agent Substrate v1.0 Control API + atenet-router daemon backed by macOS Apple container and rootless Podman.',
       favicon: '/favicon.svg',
+      credits: false,
       social: [
         {
           icon: 'github',
@@ -23,9 +24,18 @@ export default defineConfig({
       editLink: {
         baseUrl: 'https://github.com/ghchinoy/substrate-local/edit/main/site/',
       },
-      customCss: ['./src/styles/custom.css'],
+      customCss: ['./src/styles/docs.css'],
+      components: {
+        Head: './src/components/docs/Head.astro',
+      },
       expressiveCode: {
         defaultProps: { frame: 'none' },
+        styleOverrides: {
+          borderRadius: '10px',
+          borderColor: 'var(--md-sys-color-outline-variant)',
+          codeBackground: 'var(--md-sys-color-surface-container-low)',
+          frames: { shadowColor: 'transparent' },
+        },
       },
       sidebar: [
         {
@@ -70,4 +80,45 @@ export default defineConfig({
       ],
     }),
   ],
+  fonts: [
+    {
+      // Google Sans Flex (OFL), self-hosted so the site makes zero external font calls.
+      provider: fontProviders.local(),
+      name: 'Google Sans Flex',
+      cssVariable: '--font-display',
+      fallbacks: ['system-ui', 'sans-serif'],
+      options: {
+        variants: [
+          {
+            weight: '100 1000',
+            style: 'normal',
+            display: 'swap',
+            src: ['./src/assets/fonts/google-sans-flex.woff2'],
+          },
+        ],
+      },
+    },
+    {
+      provider: fontProviders.local(),
+      name: 'Google Sans Code',
+      cssVariable: '--font-mono',
+      fallbacks: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      options: {
+        variants: [
+          {
+            weight: '300 800',
+            style: 'normal',
+            display: 'swap',
+            src: ['./src/assets/fonts/google-sans-code.woff2'],
+          },
+        ],
+      },
+    },
+  ],
+  vite: {
+    build: {
+      // Preserve light-dark() and @layer from @material/web gBreeze stylesheets.
+      cssTarget: 'esnext',
+    },
+  },
 });
