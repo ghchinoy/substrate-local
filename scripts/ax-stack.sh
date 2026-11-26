@@ -384,7 +384,7 @@ cmd_up() {
     --substrate-endpoint "${HOST}:${SUBSTRATE_PORT}" \
     --substrate-plaintext \
     --router-url "http://${HOST}:${SUBSTRATE_PORT}" \
-    "${extra_ax_args[@]}"
+    ${extra_ax_args[@]+"${extra_ax_args[@]}"}
 
   echo
   cmd_status
@@ -452,7 +452,7 @@ cmd_multi_up() {
     --substrate-endpoint "${HOST}:${SUBSTRATE_PORT}" \
     --substrate-plaintext \
     --router-url "http://${HOST}:${SUBSTRATE_PORT}" \
-    "${extra_ax_args[@]}"
+    ${extra_ax_args[@]+"${extra_ax_args[@]}"}
 
   start_component substrate-local-b "${SUBSTRATE_B_PORT}" \
     "${BIN_DIR}/substrate-local" --config "${CONFIG_B_FILE}"
@@ -464,7 +464,7 @@ cmd_multi_up() {
     --substrate-endpoint "${HOST}:${SUBSTRATE_B_PORT}" \
     --substrate-plaintext \
     --router-url "http://${HOST}:${SUBSTRATE_B_PORT}" \
-    "${extra_ax_args[@]}"
+    ${extra_ax_args[@]+"${extra_ax_args[@]}"}
 
   echo
   cmd_status

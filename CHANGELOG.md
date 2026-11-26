@@ -8,12 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-25
+
 ### Added
 
-- External Go app integration guide (`docs/go-app-integration.md`) and runnable ephemeral audit job manifest (`examples/task-audit-job.yaml`) covering one-shot `verdict.json`/`patch.diff` retrieval over `ax ssh`, stack discovery (`AX_SERVER` / `ATENET_ROUTER_ADDR` / `pkg/sublocal`), and offline/untrusted-code audit guidance [`substrate-local-g6v`].
 - Read-only `ActorTemplate` OCI image volume support (`pkg/sublocal/imagevolume.go`), pulling and caching `FROM scratch` and multi-layer OCI image volumes via `go-containerregistry` for `linux/<GOARCH>` and mounting `-v <cache>:<mountPath>:ro` (enabling `ax-server --runner-volume-image` `/opt/ax/ax-runner` on unmodified prebuilt agent images and `AX_RUNNER_VOLUME_IMAGE` in `scripts/ax-stack.sh`) [`substrate-local-sqb`].
 - Standalone Podman-only mode in `scripts/ax-stack.sh` (`AX_LOCAL_RUNTIME=podman make up` runs PostgreSQL in Podman and cross-compiles `ax-runner` for host `GOARCH`, removing any Apple `container` requirement on macOS or Linux) [`substrate-local-daz`].
 - Dedicated Quickstarts (`docs/quickstart-apple-container.md`, `docs/quickstart-podman.md`) and runtime decision & compatibility boundary guide (`docs/choosing-a-runtime.md`: `substrate-local` vs. Kind vs. GKE) with links to `ghchinoy/ax-experiments` [`substrate-local-qzf`].
+- External Go app integration guide (`docs/go-app-integration.md`) and runnable ephemeral audit job manifest (`examples/task-audit-job.yaml`) covering one-shot `verdict.json`/`patch.diff` retrieval, verified 10 MiB stdin `tar` uploads for private repos over `ax ssh`, auto-created atespaces, stack discovery (`AX_SERVER` / `ATENET_ROUTER_ADDR` / `pkg/sublocal`), and offline/untrusted-code guidance [`substrate-local-g6v`].
+- Architectural Decision Record [`docs/adr-001-no-local-egress-proxy.md`](docs/adr-001-no-local-egress-proxy.md) documenting the decision to keep `atenet-egress` and TLS-MITM credential injection strictly on Kind and GKE [`substrate-local-mtv`].
 
 ## [0.1.0] - 2026-11-25
 
@@ -29,5 +32,6 @@ _Initial release._
 - Dual-theme (`light`/`dark` WebP) Lustrous Graphviz architecture, lifecycle/snapshot, and dual-cluster mobility diagrams (`docs/diagrams/`, `make diagrams`) embedded in `README.md` and `docs/architecture.md` [`substrate-local-0rq`].
 - Upstream drift tracking via `TestControlServerCoverage` (reflection + AST `ateapi/v1.ControlServer` RPC guard) and `scripts/check-substrate-drift.sh` (`make check-drift` + weekly `.github/workflows/drift.yml`) comparing pinned `go.ate.dev/substrate` and `google/ax` releases [`substrate-local-2mm`].
 
-[Unreleased]: https://github.com/ghchinoy/substrate-local/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ghchinoy/substrate-local/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ghchinoy/substrate-local/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ghchinoy/substrate-local/releases/tag/v0.1.0
