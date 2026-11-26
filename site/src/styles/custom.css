@@ -1,0 +1,39 @@
+/* Align Starlight tokens with the Lustrous Graphviz diagram palette and
+   sync dual-theme light/dark diagrams with Starlight's [data-theme] toggle. */
+
+:root {
+  --sl-color-accent-low: #dbeafe;
+  --sl-color-accent: #1d4ed8;
+  --sl-color-accent-high: #1e3a8a;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #172554;
+  --sl-color-accent: #60a5fa;
+  --sl-color-accent-high: #dbeafe;
+}
+
+.lustrous-diagram {
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-hairline-light);
+}
+
+.lustrous-diagram img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lustrous-diagram .diagram-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .lustrous-diagram .diagram-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .lustrous-diagram .diagram-dark {
+  display: block;
+}

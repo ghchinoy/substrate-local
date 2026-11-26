@@ -11,6 +11,14 @@ bin/
 .vscode/
 .DS_Store
 
+# Starlight site dependencies & generated sync artifacts (site/scripts/sync-docs.mjs)
+site/node_modules/
+site/dist/
+site/.astro/
+site/public/diagrams/
+site/src/content/docs/guides/
+site/src/content/docs/reference/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

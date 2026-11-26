@@ -1,0 +1,64 @@
+---
+title: substrate-local
+description: Zero-Kubernetes local Agent Substrate v1.0 Control API + atenet-router daemon backed by macOS Apple container and rootless Podman.
+template: splash
+hero:
+  title: substrate-local
+  tagline: Run unmodified upstream AX on macOS Apple container microVMs or rootless Podman — zero Kubernetes, zero Docker, ~3s boot.
+  actions:
+    - text: macOS Apple container Quickstart
+      link: /substrate-local/guides/quickstart-apple-container/
+      icon: right-arrow
+      variant: primary
+    - text: Rootless Podman Quickstart
+      link: /substrate-local/guides/quickstart-podman/
+      variant: secondary
+    - text: Choosing Local vs. Kind vs. GKE
+      link: /substrate-local/guides/choosing-a-runtime/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<div class="lustrous-diagram">
+  <img
+    class="diagram-light"
+    src="/substrate-local/diagrams/01-substrate-local-architecture-light.webp"
+    alt="substrate-local zero-Kubernetes Agent Substrate 1.0 architecture for unmodified AX"
+  />
+  <img
+    class="diagram-dark"
+    src="/substrate-local/diagrams/01-substrate-local-architecture-dark.webp"
+    alt="substrate-local zero-Kubernetes Agent Substrate 1.0 architecture for unmodified AX"
+  />
+</div>
+
+## Why `substrate-local`?
+
+<CardGrid>
+  <Card title="~3s Zero-Docker Boot" icon="rocket">
+    Start PostgreSQL, <code>substrate-local</code>, and unmodified upstream <code>ax-server</code> in seconds—without Docker Desktop, Colima, or a 6–8 GiB Kind VM.
+  </Card>
+  <Card title="Apple container & Rootless Podman" icon="laptop">
+    Runs natively on macOS <code>Virtualization.framework</code> microVMs and default rootless Podman on macOS & Linux, including dual-cluster cross-runtime mobility.
+  </Card>
+  <Card title="OCI Runner Image Volumes" icon="puzzle">
+    Pulls and caches read-only <code>ActorTemplate</code> OCI image volumes (<code>--runner-volume-image</code> at <code>/opt/ax</code>) so plain language images and prebuilt agents run unmodified.
+  </Card>
+  <Card title="Embeddable Go pkg/sublocal" icon="seti:go">
+    Zero dependency on <code>github.com/google/ax</code>—only <code>go.ate.dev/substrate v1.0.1</code>, gRPC, Protobuf, and YAML. Guarded by automated <code>ControlServer</code> RPC coverage tests.
+  </Card>
+</CardGrid>
+
+## Start in 60 seconds
+
+```bash
+git clone https://github.com/ghchinoy/substrate-local.git
+cd substrate-local
+make up                                 # Apple container (or: AX_LOCAL_RUNTIME=podman make up)
+source .substrate-local/env
+
+ax apply -f examples/task-local.yaml
+ax resume task local-task
+ax ssh local-task -- uname -sm          # Linux aarch64
+```

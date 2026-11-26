@@ -24,6 +24,7 @@ Standalone zero-Kubernetes Agent Substrate `v1.0.0` Control API + `atenet-router
 - `docs/go-app-integration.md` — Integration guide for external Go control planes driving stock `ax` + `substrate-local` (ephemeral audit jobs, stack discovery, offline/untrusted-code guidance)
 - `docs/architecture.md` — Architecture, runtime comparison, and limitations
 - `docs/diagrams/` — Semantic Graphviz `.dot` sources and dual-theme (`-light.webp` / `-dark.webp`) diagrams rendered via `make diagrams` (`../graphviz-style/theme/lustrous.gvpr`)
+- `site/` — Astro Starlight documentation site (`make site-dev`, `make site-build`), automatically syncing canonical `docs/` and `docs/diagrams/` via `site/scripts/sync-docs.mjs` and deploying to GitHub Pages via `.github/workflows/deploy-site.yml`
 
 ## Verification
 

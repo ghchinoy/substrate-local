@@ -3,6 +3,7 @@
 A standalone, zero-Kubernetes local runtime implementing the [Agent Substrate](https://github.com/agent-substrate/substrate) `v1.0.0` Control API (`ateapi/v1.ControlServer`) and `atenet-router` (`ate-target-actor` HTTP/1.1 + HTTP/2 `h2c`) over macOS Apple `container` (`Virtualization.framework`) or rootless Podman.
 
 [![CI](https://github.com/ghchinoy/substrate-local/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ghchinoy/substrate-local/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/Docs-Starlight-1D4ED8)](https://ghchinoy.github.io/substrate-local/)
 [![Go Version](https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 

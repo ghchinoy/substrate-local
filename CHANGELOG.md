@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Astro Starlight documentation site under `site/` (`make site-dev`, `make site-build`) with single-source-of-truth doc/diagram sync (`site/scripts/sync-docs.mjs`), Starlight theme-aware Lustrous Graphviz diagrams, `starlight-llms-txt` (`llms.txt` / `llms-full.txt`), Pagefind search, and GitHub Pages deployment (`.github/workflows/deploy-site.yml`) [`substrate-local-kb2`].
+
 ## [0.2.0] - 2026-11-25
 
 ### Added

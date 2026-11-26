@@ -27,7 +27,7 @@ DOT ?= $(shell command -v dot 2>/dev/null || echo /opt/homebrew/bin/dot)
 DIAGRAM_DOTS := $(sort $(wildcard docs/diagrams/*.dot))
 DIAGRAM_WEBPS := $(DIAGRAM_DOTS:.dot=-light.webp) $(DIAGRAM_DOTS:.dot=-dark.webp)
 
-.PHONY: build run test test-compat check-drift diagrams vet fmt up down multi-up multi-down status logs reset clean
+.PHONY: build run test test-compat check-drift diagrams site-dev site-build vet fmt up down multi-up multi-down status logs reset clean
 
 build:
 	mkdir -p bin
@@ -52,6 +52,12 @@ docs/diagrams/%-light.webp: docs/diagrams/%.dot $(LUSTROUS_THEME)
 
 docs/diagrams/%-dark.webp: docs/diagrams/%.dot $(LUSTROUS_THEME)
 	$(GVPR) -c -f $(LUSTROUS_THEME) -a dark $< | $(DOT) -Twebp -o $@
+
+site-dev:
+	cd site && npm run dev
+
+site-build:
+	cd site && npm run check && npm run build
 
 vet:
 	go vet ./...
