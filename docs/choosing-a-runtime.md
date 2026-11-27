@@ -4,6 +4,12 @@ Because [AX](https://github.com/google/ax) talks exclusively to the [Agent Subst
 
 This guide defines the **compatibility boundary** of `substrate-local` and helps you pick the right tier for what you are doing today.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/04-runtime-graduation-ladder-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="diagrams/04-runtime-graduation-ladder-light.webp">
+  <img alt="Three-tier runtime graduation ladder from substrate-local to Kind ax local and Google Cloud GKE" src="diagrams/04-runtime-graduation-ladder-light.webp">
+</picture>
+
 ---
 
 ## Quick Decision Matrix
@@ -42,6 +48,19 @@ Promote your unchanged manifests (`ax promote task <name> --to <gke-context>`) t
 - **Strong multi-tenant & untrusted-code isolation** (gVisor/microVM workers, SPIFFE mTLS, `atenet-egress` SSRF & allowlist enforcement, RBAC `AccessPolicy`).
 - **Durable GCS snapshot storage & `WorkerPool` autoscaling** across hundreds or thousands of concurrent or parked long-running sessions.
 - **Shared team clusters, CI pipelines, and centralized observability** (OTLP traces, Prometheus metrics, and trajectory collection).
+
+---
+
+## Graduating a Task from `substrate-local` to Kind / GKE
+
+Your `Task`, `Workspace`, and `Gateway` YAML schemas stay **unchanged** across all three tiers. When moving a workload from fast inner-loop development on `substrate-local` to an enforced Kind (`ax local start`) or GKE cluster, check only **two concrete deltas**:
+
+1. **Move API keys out of `Task.spec.env` into a `Gateway` + Kubernetes Secret:**
+   - On `substrate-local`, `Gateway` specs are stored for validation only and do not block outbound traffic or inject secrets.
+   - Before deploying to Kind or GKE, create the cluster secret labeled `ax.io/credential=true` (via `kubectl apply -f -` over stdin or AX Central's Deploy Secret panel), reference `ate-secret://k8s.io/default/<ns>/<name>/<key>` in `Gateway.spec.egress[].https.effects.replaceHeaders`, and replace the real key in `Task.spec.env` with a harmless placeholder value.
+2. **Pin container images by immutable `@sha256:...` digest:**
+   - `substrate-local` permits mutable dev tags (`:latest`, `:dev`) during rapid image iteration, whereas upstream Agent Substrate requires `@sha256:...` digests on `Task.spec.profile.image` (and `Workspace.spec.profile.image`).
+   - Run `ax promote task <name> --to <target-context>` (or AX Central's **Move Task**, which resolves tags to digests automatically) to transfer both the manifest and `/workspace` snapshot cleanly.
 
 ---
 

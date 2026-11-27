@@ -13,6 +13,12 @@ In production [Agent Substrate](https://github.com/agent-substrate/substrate) (`
 
 We evaluated whether `substrate-local` should add an opt-in userspace `HTTPS_PROXY` + TLS-MITM credential-injection proxy (backed by a local secrets file and a generated CA written to `/run/ate/egress-trust-bundle/trust-bundle.pem`) or leave `atenet-egress` strictly to Kind and GKE.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/05-egress-gateway-boundary-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="diagrams/05-egress-gateway-boundary-light.webp">
+  <img alt="AX Gateway egress boundary comparing Kind/GKE atenet-egress, core substrate-local, and an experimental dual-homed Envoy on Apple container" src="diagrams/05-egress-gateway-boundary-light.webp">
+</picture>
+
 ## Analysis
 
 ### What an opt-in userspace proxy would give us
@@ -36,3 +42,20 @@ We evaluated whether `substrate-local` should add an opt-in userspace `HTTPS_PRO
 ## Revisit Trigger
 
 Reopen this decision only if a high-value workflow requires `ate-secret://` header substitution on environments where Kind cannot run. If ever implemented, it must be strictly opt-in (e.g. `--dev-credential-proxy`) with an explicit startup warning that it provides **developer credential convenience only, not egress containment**.
+
+## Addendum (2026-11-27): Dual-Homed Envoy on Apple `container` (`--internal`)
+
+Following a deeper inspection of macOS Apple `container`'s `container-network-vmnet` plugin, two native primitives make a **genuinely non-bypassable internet-isolation topology** technically feasible on Apple Silicon without root or host `pf` rules:
+
+1. `container network create --internal ax-internal` creates a host-only microVM subnet with **no default internet route**.
+2. `container run --network ax-internal --network default` can attach a single **dual-homed Envoy microVM** (`substrate-egress`) to both networks, while agent microVMs attach **only** to `ax-internal` (each receiving a unique per-actor `vmnet` IP for `ActorEgressPolicy` attribution, plus `/run/ate/egress-trust-bundle/trust-bundle.pem` mounted for `ax-runner`).
+
+### Why this still stays outside `substrate-local` core
+Even with `--internal`, four production mismatches remain relative to Kind (`ax local start`) and GKE:
+- **Host-only ≠ host-isolated:** `--internal` still permits traffic to the macOS host bridge IP (unlike gVisor + Kubernetes network policies).
+- **Apple `container` only (Podman asymmetry):** Rootless Podman (`pasta`/`libkrun`) lacks equivalent per-actor IP dual-homed isolation, so the two `substrate-local` runtimes would diverge in security behavior.
+- **Secret backend mismatch:** Bridging `ate-secret://k8s.io/default/<ns>/<name>/<key>` to a local Keychain or file store differs from Kubernetes Secret RBAC and audit semantics.
+- **Dynamic xDS maintenance tax:** Translating every upstream `ateapi/v1.EgressRule` feature (SSRF IP blocking, `tlsPassthrough`, `MintActorJwt`, leaf-cert caching) into Envoy xDS would duplicate upstream `atenet-egress`.
+
+### Clear path for intrepid experimenters
+To keep `substrate-local` core honest and predictable for the majority of developers—while still giving risk-positive developers a clean place to explore—any dual-homed Apple `container` Envoy prototype should live as an **opt-in external experiment in [`ghchinoy/ax-experiments`](https://github.com/ghchinoy/ax-experiments)** rather than inside `substrate-local` core. Production and pre-production egress testing should always graduate to Kind (`ax local start`) or GKE.

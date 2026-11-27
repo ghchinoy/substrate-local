@@ -1,0 +1,46 @@
+// Three-tier runtime graduation ladder: same AX manifests & Substrate v1.0 API
+// from 3-second laptop microVMs to Kind local parity and GKE production scale.
+digraph runtime_graduation_ladder {
+  label = "AX & Agent Substrate · Runtime Graduation Ladder & Security Boundary";
+  rankdir = TB;
+  ranksep = 0.65;
+  nodesep = 0.45;
+  newrank = true;
+
+  contract [label="Unchanged Upstream Contract\nTask · Workspace · Gateway · Model YAML  |  ax CLI / AX Central / Go client  |  ateapi/v1", class="primary code"];
+
+  subgraph cluster_t1 {
+    label = "Tier 1 · substrate-local (Inner Loop & Laptop Swarms)";
+    class = "accent";
+    t1_rt  [label="Apple container / Rootless Podman\n~3s cold start · <512 MiB idle\n0-RAM suspend + wake-on-request", class="positive"];
+    t1_sec [label="Security & Egress Boundary\nGateway stored (validation-only)\nNo atenet-egress · No K8s Secrets\nDev creds via spec.env or host orchestrator", class="warning"];
+  }
+
+  subgraph cluster_t2 {
+    label = "Tier 2 · Kind (ax local start + ax studio)";
+    class = "accent";
+    t2_rt  [label="Local Kubernetes + gVisor (runsc)\n~3-5m fresh · 6-8 GiB rootful VM\nFull upstream Substrate v1.0 stack", class="cat-teal"];
+    t2_sec [label="Security & Egress Boundary\nDefault-deny Envoy atenet-egress\nKeyless K8s Secrets (ax.io/credential=true)\nMatches production network policy", class="positive"];
+  }
+
+  subgraph cluster_t3 {
+    label = "Tier 3 · Google Cloud GKE (Production & Teams)";
+    class = "accent";
+    t3_rt  [label="Autoscaled WorkerPools + GCS\n100s-1000s parked/active agents\nMulti-tenant RBAC + OTLP telemetry", class="cat-purple"];
+    t3_sec [label="Security & Egress Boundary\nFull gVisor / microVM + SPIFFE mTLS\natenet-egress SSRF + Secret Manager\nZero-trust untrusted-code isolation", class="positive"];
+  }
+
+  {rank=same; t1_rt; t2_rt; t3_rt;}
+  {rank=same; t1_sec; t2_sec; t3_sec;}
+
+  contract -> t1_rt [label="Fast iteration\n(10-50 swarms)"];
+  contract -> t2_rt [label="Parity check\n(Gateway + Secrets)"];
+  contract -> t3_rt [label="Production scale\n(untrusted code)"];
+
+  t1_rt -> t1_sec [style=invis];
+  t2_rt -> t2_sec [style=invis];
+  t3_rt -> t3_sec [style=invis];
+
+  t1_rt -> t2_rt [label="ax promote / Move Task\n(+ digest pin & Gateway Secret)", class="primary"];
+  t2_rt -> t3_rt [label="Same YAML\n(switch kubeconfig)", class="positive"];
+}
